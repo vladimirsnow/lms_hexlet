@@ -88,6 +88,7 @@
     "vitest": "5.0.5"
   },
   "overrides": {
-    "minimatch": "11.0.1"
+    "minimatch": "11.0.1",
+    "jsdom": "25.0.1"
   }
 }
