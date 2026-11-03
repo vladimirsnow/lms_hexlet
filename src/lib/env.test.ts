@@ -24,10 +24,23 @@ describe("server environment", () => {
     const env = parseServerEnv({
       ...requiredValues,
       APP_URL: undefined,
+      VERCEL_ENV: "preview",
       VERCEL_URL: "kzhexly-preview.vercel.app",
     });
 
     expect(env.APP_URL).toBe("https://kzhexly-preview.vercel.app");
+  });
+
+  it("uses Vercel's stable project domain for production", () => {
+    const env = parseServerEnv({
+      ...requiredValues,
+      APP_URL: undefined,
+      VERCEL_ENV: "production",
+      VERCEL_URL: "deployment-123.vercel.app",
+      VERCEL_PROJECT_PRODUCTION_URL: "kzhexly-college.vercel.app",
+    });
+
+    expect(env.APP_URL).toBe("https://kzhexly-college.vercel.app");
   });
 
   it("rejects missing required secrets and service settings", () => {

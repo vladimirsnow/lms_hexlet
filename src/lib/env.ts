@@ -3,6 +3,10 @@ import { z } from "zod";
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+    VERCEL_URL: z.string().trim().optional(),
+    VERCEL_BRANCH_URL: z.string().trim().optional(),
+    VERCEL_PROJECT_PRODUCTION_URL: z.string().trim().optional(),
     APP_URL: z.string().url().default("http://127.0.0.1:3000"),
     SEO_INDEXING_ENABLED: z
       .enum(["true", "false"])
@@ -79,8 +83,20 @@ const envSchema = z
 export type ServerEnv = z.infer<typeof envSchema>;
 let parsedEnv: ServerEnv | undefined;
 
+function withHttps(host: string | undefined): string | undefined {
+  const value = host?.trim();
+  if (!value) return undefined;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 export function parseServerEnv(source: Record<string, string | undefined>): ServerEnv {
-  const appUrl = source.APP_URL ?? (source.VERCEL_URL ? `https://${source.VERCEL_URL}` : undefined);
+  const projectProductionUrl = withHttps(source.VERCEL_PROJECT_PRODUCTION_URL);
+  const deploymentUrl = withHttps(source.VERCEL_URL);
+  const appUrl =
+    source.APP_URL ??
+    (source.VERCEL_ENV === "production" ? projectProductionUrl : undefined) ??
+    deploymentUrl ??
+    projectProductionUrl;
   return envSchema.parse({
     ...source,
     APP_URL: appUrl,

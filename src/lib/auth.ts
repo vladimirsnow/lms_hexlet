@@ -4,6 +4,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { getTrustedAuthOrigins } from "@/lib/auth/origins";
 import { getPrisma } from "@/lib/db/prisma";
 import { getServerEnv } from "@/lib/env";
 
@@ -13,7 +14,13 @@ const env = getServerEnv();
 const prisma = getPrisma();
 const hashedTokenPrefix = "sha256$";
 const appUrl = new URL(env.APP_URL);
-const trustedOrigins = new Set([appUrl.origin]);
+const trustedOrigins = new Set(
+  getTrustedAuthOrigins(env.APP_URL, [
+    env.VERCEL_PROJECT_PRODUCTION_URL,
+    env.VERCEL_URL,
+    env.VERCEL_BRANCH_URL,
+  ]),
+);
 
 if (env.NODE_ENV === "development" && ["localhost", "127.0.0.1"].includes(appUrl.hostname)) {
   for (const hostname of ["localhost", "127.0.0.1"]) {
