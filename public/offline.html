@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f1f8" />
+    <meta
+      name="description"
+      content="Страница временно недоступна. Проверьте соединение и попробуйте ещё раз."
+    />
+    <title>Нет соединения · Хекслет Колледж</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, "Segoe UI", sans-serif;
+        background: #f6f1f8;
+        color: #25202b;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        min-height: 100svh;
+        margin: 0;
+        padding: 24px clamp(18px, 5vw, 72px);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        overflow-x: hidden;
+        background:
+          radial-gradient(ellipse at 79% 18%, #e8d9f1 0, transparent 32%),
+          radial-gradient(ellipse at 12% 87%, #f3e3dc 0, transparent 29%),
+          #f8f6f8;
+      }
+
+      .page-width {
+        width: min(100%, 1120px);
+        margin-inline: auto;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        box-shadow: 0 6px 16px #6c3f8f26;
+      }
+
+      .brand-name {
+        display: block;
+        font-size: 15px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-caption {
+        display: block;
+        margin-top: 3px;
+        color: #756c7c;
+        font-size: 12px;
+      }
+
+      .top-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 13px;
+        border: 1px solid #e8e0eb;
+        border-radius: 999px;
+        background: #ffffffa8;
+        color: #675e6c;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .top-note svg {
+        color: #79509a;
+      }
+
+      main {
+        display: grid;
+        place-items: center;
+        padding-block: 48px;
+      }
+
+      .card {
+        position: relative;
+        width: min(100%, 760px);
+        min-height: 380px;
+        padding: clamp(30px, 6vw, 66px);
+        overflow: hidden;
+        border: 1px solid #ffffff;
+        border-radius: 28px;
+        background: #ffffffd9;
+        box-shadow:
+          0 36px 90px #38224812,
+          0 4px 18px #3822480a,
+          inset 0 1px #ffffff;
+        backdrop-filter: blur(14px);
+      }
+
+      .card::after {
+        position: absolute;
+        top: -95px;
+        right: -68px;
+        width: 310px;
+        height: 310px;
+        border: 1px solid #e8dded;
+        border-radius: 50%;
+        content: "";
+        box-shadow:
+          0 0 0 28px #efe7f31c,
+          0 0 0 58px #efe7f31c;
+        pointer-events: none;
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        max-width: 500px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 24px;
+        padding: 8px 11px;
+        border: 1px solid #eadff0;
+        border-radius: 999px;
+        background: #f6f0f9;
+        color: #68437f;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #9a6ab3;
+        box-shadow: 0 0 0 4px #9a6ab31c;
+      }
+
+      h1 {
+        max-width: 570px;
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(38px, 7vw, 62px);
+        font-weight: 400;
+        letter-spacing: -0.055em;
+        line-height: 1.04;
+      }
+
+      .description {
+        max-width: 430px;
+        margin: 19px 0 0;
+        color: #716a77;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 32px;
+      }
+
+      .retry {
+        min-height: 50px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 19px;
+        border: 1px solid #6c3f8f;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #79509a, #60377f);
+        box-shadow: 0 10px 22px #6c3f8f2b;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+        transition:
+          transform 160ms ease,
+          box-shadow 160ms ease;
+      }
+
+      .retry:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px #6c3f8f35;
+      }
+
+      .retry:focus-visible,
+      .brand:focus-visible {
+        outline: 3px solid #ac8cc0;
+        outline-offset: 4px;
+      }
+
+      .retry svg {
+        width: 17px;
+        height: 17px;
+      }
+
+      .hint {
+        color: #817a86;
+        font-size: 13px;
+      }
+
+      footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding-top: 18px;
+        border-top: 1px solid #e9e3eb;
+        color: #8a8290;
+        font-size: 12px;
+      }
+
+      footer strong {
+        color: #61586a;
+        font-weight: 650;
+      }
+
+      @media (max-width: 600px) {
+        body {
+          padding: 18px;
+        }
+
+        .top-note {
+          width: 38px;
+          height: 38px;
+          justify-content: center;
+          padding: 0;
+          overflow: hidden;
+          font-size: 0;
+        }
+
+        .top-note svg {
+          min-width: 17px;
+        }
+
+        main {
+          padding-block: 30px;
+        }
+
+        .card {
+          min-height: auto;
+          padding: 31px 24px 34px;
+          border-radius: 22px;
+        }
+
+        .card::after {
+          top: -130px;
+          right: -142px;
+        }
+
+        .status {
+          margin-bottom: 20px;
+        }
+
+        .description {
+          font-size: 15px;
+        }
+
+        .actions {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 13px;
+          margin-top: 26px;
+        }
+
+        .retry {
+          width: 100%;
+        }
+
+        footer {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 5px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar page-width">
+      <a class="brand" href="/" aria-label="Хекслет Колледж — на главную">
+        <img src="/icon.svg" alt="" width="42" height="42" />
+        <span>
+          <span class="brand-name">Хекслет Колледж</span>
+          <span class="brand-caption">Учебная платформа</span>
+        </span>
+      </a>
+      <span class="top-note">
+        <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none">
+          <path d="M2.8 9.4a14.2 14.2 0 0 1 18.4 0M6.4 13a8.7 8.7 0 0 1 11.2 0m-7.5 3.8a3 3 0 0 1 3.8 0M12 20h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="m4 4 16 16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+        Нет сети
+      </span>
+    </header>
+
+    <main class="page-width">
+      <section class="card" aria-labelledby="offline-title">
+        <div class="content">
+          <span class="status"><span class="status-dot" aria-hidden="true"></span>Связь прервана</span>
+          <h1 id="offline-title">Похоже, страница пока недоступна</h1>
+          <p class="description">
+            Проверьте подключение к интернету или дождитесь, пока сервер снова станет доступен.
+            Затем попробуйте открыть страницу ещё раз.
+          </p>
+          <div class="actions">
+            <a class="retry" href="/">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                <path d="M20 7v5h-5M4.6 10a7.5 7.5 0 0 1 12.7-3.4L20 9M4 17v-5h5m10.4 2a7.5 7.5 0 0 1-12.7 3.4L4 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              Повторить подключение
+            </a>
+            <span class="hint">Страница обновится, когда соединение восстановится.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-width">
+      <span><strong>Kzhexly</strong> · Учебная платформа</span>
+      <span>После восстановления связи вернитесь в учебный кабинет.</span>
+    </footer>
+  </body>
+</html>

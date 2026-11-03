@@ -1,0 +1,49 @@
+import { ApiError, apiErrorResponse } from "@/lib/http/api-error";
+import { getRequestId } from "@/lib/http/request-id";
+import { assertSameOrigin, requireActor } from "@/server/auth/session";
+import {
+  getSubmission,
+  parseAssignmentId,
+  updateSubmissionDraft,
+} from "@/server/services/assignments";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+type RouteContext = { params: Promise<{ submissionId: string }> };
+
+export async function GET(request: Request, context: RouteContext) {
+  const requestId = getRequestId(request);
+  try {
+    const actor = await requireActor(request.headers);
+    const { submissionId } = await context.params;
+    const submission = await getSubmission(actor, parseAssignmentId(submissionId));
+    return Response.json(
+      { submission },
+      { headers: { "X-Request-ID": requestId, "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    return apiErrorResponse(error, requestId);
+  }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const requestId = getRequestId(request);
+  try {
+    assertSameOrigin(request);
+    const actor = await requireActor(request.headers);
+    const { submissionId } = await context.params;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      throw new ApiError(400, "INVALID_JSON", "Тело запроса должно быть JSON.");
+    }
+    const submission = await updateSubmissionDraft(actor, parseAssignmentId(submissionId), body);
+    return Response.json(
+      { submission },
+      { headers: { "X-Request-ID": requestId, "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    return apiErrorResponse(error, requestId);
+  }
+}

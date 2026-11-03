@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+coverage
+dist
+out
+backups
+.local-services
+generated
+.env
+.env.*
+!.env.example
+npm-debug.log*
+*.pem

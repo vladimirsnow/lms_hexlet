@@ -1,0 +1,49 @@
+diff --git a/node_modules/@eslint/eslintrc/lib/config-array/override-tester.js b/node_modules/@eslint/eslintrc/lib/config-array/override-tester.js
+index 3a445b1..453ee83 100644
+--- a/node_modules/@eslint/eslintrc/lib/config-array/override-tester.js
++++ b/node_modules/@eslint/eslintrc/lib/config-array/override-tester.js
+@@ -20,9 +20,7 @@
+ import assert from "node:assert";
+ import path from "node:path";
+ import util from "node:util";
+-import minimatch from "minimatch";
+-
+-const { Minimatch } = minimatch;
++import { minimatch } from "minimatch";
+ 
+ const minimatchOpts = { dot: true, matchBase: true };
+ 
+@@ -51,22 +49,23 @@ function normalizePatterns(patterns) {
+ /**
+  * Create the matchers of given patterns.
+  * @param {string[]} patterns The patterns.
+- * @returns {InstanceType<Minimatch>[] | null} The matchers.
++ * @returns {{ pattern: string, match(path: string): boolean }[] | null} The matchers.
+  */
+ function toMatcher(patterns) {
+     if (patterns.length === 0) {
+         return null;
+     }
+     return patterns.map(pattern => {
+-        if (/^\.[/\\]/u.test(pattern)) {
+-            return new Minimatch(
+-                pattern.slice(2),
+-
+-                // `./*.js` should not match with `subdir/foo.js`
+-                { ...minimatchOpts, matchBase: false }
+-            );
+-        }
+-        return new Minimatch(pattern, minimatchOpts);
++        const normalizedPattern = /^\.[/\\]/u.test(pattern)
++            ? pattern.slice(2)
++            : pattern;
++        const options = /^\.[/\\]/u.test(pattern)
++            ? { ...minimatchOpts, matchBase: false }
++            : minimatchOpts;
++        return {
++            pattern: normalizedPattern,
++            match: filePath => minimatch(filePath, normalizedPattern, options),
++        };
+     });
+ }
+ 

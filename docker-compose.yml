@@ -1,0 +1,164 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    command: ["postgres", "-c", "timezone=UTC"]
+    env_file: .env
+    environment:
+      TZ: UTC
+    ports:
+      - "127.0.0.1:${LOCAL_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  minio:
+    image: kzhexly/minio-community:RELEASE.2025-10-15T17-29-55Z
+    build:
+      context: .
+      dockerfile: minio.Dockerfile
+      target: server
+      args:
+        MINIO_VERSION: RELEASE.2025-10-15T17-29-55Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: .env
+    environment:
+      TZ: Asia/Almaty
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: kzhexly/mc-community:RELEASE.2025-08-13T08-35-41Z
+    build:
+      context: .
+      dockerfile: minio.Dockerfile
+      target: mc
+      args:
+        MC_VERSION: RELEASE.2025-08-13T08-35-41Z
+    env_file: .env
+    environment:
+      MC_CONFIG_DIR: /tmp/mc-config
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        do sleep 2; done
+        && mc mb --ignore-existing local/$${MINIO_BUCKET}
+        && MINIO_POLICY="lms-app-$${MINIO_BUCKET}"
+        && sed "s/__MINIO_BUCKET__/$${MINIO_BUCKET}/g" /policies/lms-app-policy.template.json > /tmp/lms-app-policy.json
+        && (mc admin policy info local "$${MINIO_POLICY}" >/dev/null 2>&1 || mc admin policy create local "$${MINIO_POLICY}" /tmp/lms-app-policy.json)
+        && (mc admin user info local "$${MINIO_ACCESS_KEY}" >/dev/null 2>&1 || mc admin user add local "$${MINIO_ACCESS_KEY}" "$${MINIO_SECRET_KEY}")
+        && (mc admin policy detach local "$${MINIO_POLICY}" --user "$${MINIO_ACCESS_KEY}" >/dev/null 2>&1 || true)
+        && mc admin policy attach local "$${MINIO_POLICY}" --user "$${MINIO_ACCESS_KEY}"
+    depends_on:
+      - minio
+    volumes:
+      - ./minio/lms-app-policy.template.json:/policies/lms-app-policy.template.json:ro
+
+  minio-client:
+    image: kzhexly/mc-community:RELEASE.2025-08-13T08-35-41Z
+    build:
+      context: .
+      dockerfile: minio.Dockerfile
+      target: mc
+      args:
+        MC_VERSION: RELEASE.2025-08-13T08-35-41Z
+    profiles: ["tools"]
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep infinity"]
+
+  clamav:
+    image: clamav/clamav:1.4.6
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Almaty
+      CLAMD_CONF_StreamMaxLength: ${CLAMAV_STREAM_MAX:-100M}
+      CLAMD_CONF_MaxFileSize: ${CLAMAV_STREAM_MAX:-100M}
+      CLAMD_CONF_AlertExceedsMax: "yes"
+    expose:
+      - "3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      FILE_SCAN_REQUIRED: "true"
+      APP_URL: "https://${APP_DOMAIN}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      MINIO_ENDPOINT: minio:9000
+    expose:
+      - "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      target: worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      FILE_SCAN_REQUIRED: "true"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: "3310"
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  minio_data:
+  clamav_data:
+  caddy_data:
+  caddy_config:
