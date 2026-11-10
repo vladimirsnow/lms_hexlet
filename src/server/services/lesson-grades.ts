@@ -41,32 +41,47 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
     throw new ApiError(422, "INVALID_PERIOD", "Выберите период не длиннее 63 дней.");
   }
   const prisma = getPrisma();
-  const [groups, latestImport] = await Promise.all([
-    prisma.studyGroup.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { curatorId: actor.id },
-          { scheduleEntries: { some: { teacherId: actor.id } } },
-          {
-            enrollments: {
-              some: {
-                status: "ACTIVE",
-                course: { teacherAssignments: { some: { teacherId: actor.id } } },
-              },
-            },
-          },
-        ],
-      },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+  const [latestImport, manualGroups] = await Promise.all([
     prisma.scheduleImport.findFirst({
       orderBy: { createdAt: "desc" },
       select: { entries: true },
     }),
+    prisma.scheduleEntry.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ teacherId: actor.id }, { group: { curatorId: actor.id } }],
+      },
+      select: { groupId: true },
+      distinct: ["groupId"],
+    }),
   ]);
   const imported = (latestImport?.entries ?? []) as unknown as ImportedLesson[];
+  const scheduledGroupIds = [
+    ...new Set([
+      ...imported.flatMap((entry) => (entry.groupId ? [entry.groupId] : [])),
+      ...manualGroups.map((entry) => entry.groupId),
+    ]),
+  ];
+  const groups = await prisma.studyGroup.findMany({
+    where: {
+      isActive: true,
+      id: { in: scheduledGroupIds },
+      OR: [
+        { curatorId: actor.id },
+        { scheduleEntries: { some: { teacherId: actor.id } } },
+        {
+          enrollments: {
+            some: {
+              status: "ACTIVE",
+              course: { teacherAssignments: { some: { teacherId: actor.id } } },
+            },
+          },
+        },
+      ],
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
   const groupId =
     parsed.data.groupId ??
     groups.find((group) =>
@@ -79,7 +94,15 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
     throw new ApiError(403, "FORBIDDEN", "Эта группа вам недоступна.");
   }
   if (!groupId)
-    return { groups, groupId: null, students: [], lessons: [], grades: [], suggestedPeriod: null };
+    return {
+      groups,
+      groupId: null,
+      students: [],
+      lessons: [],
+      grades: [],
+      availableDates: [],
+      suggestedDate: null,
+    };
 
   const [members, entries, grades] = await Promise.all([
     prisma.groupMember.findMany({
@@ -174,9 +197,11 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
   const studentIds = new Set(members.map(({ student }) => student.id));
   const availableDates = [
     ...new Set(imported.filter((entry) => entry.groupId === groupId).map((entry) => entry.date)),
-  ].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date));
+  ]
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
   const nearestDate = !lessons.length
-    ? availableDates.sort((a, b) => {
+    ? [...availableDates].sort((a, b) => {
         const distance = (date: string) =>
           date < from
             ? Date.parse(from) - Date.parse(date)
@@ -186,22 +211,13 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
         return distance(a) - distance(b) || a.localeCompare(b);
       })[0]
     : undefined;
-  const suggestedPeriod = nearestDate
-    ? (() => {
-        const day = new Date(`${nearestDate}T00:00:00Z`);
-        const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86400000);
-        return {
-          from: monday.toISOString().slice(0, 10),
-          to: new Date(monday.getTime() + 6 * 86400000).toISOString().slice(0, 10),
-        };
-      })()
-    : null;
   return {
     groups,
     groupId,
     students: members.map(({ student }) => student),
     lessons,
-    suggestedPeriod,
+    availableDates,
+    suggestedDate: nearestDate ?? null,
     grades: grades
       .filter(
         (grade) =>

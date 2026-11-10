@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "@/lib/api-fetch";
 import { normalizeLocale } from "@/lib/i18n";
 
@@ -14,23 +15,23 @@ const labels = {
     moreFilters: "Ещё фильтры",
     hideFilters: "Скрыть",
     scale: "100-балльная система",
-    lessonMetric: "Пар в периоде",
+    lessonMetric: "Пар за день",
     studentMetric: "Студентов",
     filledMetric: "Оценок выставлено",
     group: "Группа",
     week: "Неделя",
-    from: "С",
-    to: "По",
+    date: "Дата",
     student: "Студент",
     allStudents: "Все студенты",
     chooseGroup: "Выберите группу",
     chooseWeek: "Выберите неделю",
-    today: "Эта неделя",
+    today: "Сегодня",
+    previousDay: "Предыдущий день",
+    nextDay: "Следующий день",
     loading: "Загружаем журнал…",
     noGroups: "У вас пока нет доступных групп.",
-    noLessons:
-      "На выбранные даты в расписании группы нет занятий. Выберите другую неделю или период.",
-    nearestPeriod: "Показана ближайшая неделя из расписания.",
+    noLessons: "В этот день у группы нет занятий. Выберите другую дату или перелистните день.",
+    nearestDay: "Показан ближайший день с занятиями из расписания.",
     noStudents: "Студенты не найдены.",
     saved: "Оценка сохранена.",
     savedInline: "Сохранено",
@@ -40,7 +41,6 @@ const labels = {
     saveError: "Не удалось сохранить оценку.",
     rangeError: "Введите целое число от 0 до 100.",
     grade: "Балл",
-    gradeHint: "Введите 0–100. Балл сохранится при переходе из ячейки.",
     scroll: "Прокрутите таблицу вправо, чтобы увидеть остальные пары.",
   },
   kk: {
@@ -52,22 +52,23 @@ const labels = {
     moreFilters: "Басқа сүзгілер",
     hideFilters: "Жасыру",
     scale: "100 балдық жүйе",
-    lessonMetric: "Кезеңдегі сабақтар",
+    lessonMetric: "Күндегі сабақтар",
     studentMetric: "Студенттер",
     filledMetric: "Қойылған бағалар",
     group: "Топ",
     week: "Апта",
-    from: "Бастап",
-    to: "Дейін",
+    date: "Күні",
     student: "Студент",
     allStudents: "Барлық студенттер",
     chooseGroup: "Топты таңдаңыз",
     chooseWeek: "Аптаны таңдаңыз",
-    today: "Осы апта",
+    today: "Бүгін",
+    previousDay: "Алдыңғы күн",
+    nextDay: "Келесі күн",
     loading: "Журнал жүктелуде…",
     noGroups: "Қолжетімді топтар әлі жоқ.",
-    noLessons: "Таңдалған күндерде топ кестесінде сабақ жоқ. Басқа апта не кезең таңдаңыз.",
-    nearestPeriod: "Кестедегі ең жақын апта көрсетілді.",
+    noLessons: "Бұл күні топтың сабағы жоқ. Басқа күнді таңдаңыз немесе күндерді ауыстырыңыз.",
+    nearestDay: "Кестедегі ең жақын сабақ күні көрсетілді.",
     noStudents: "Студенттер табылмады.",
     saved: "Баға сақталды.",
     savedInline: "Сақталды",
@@ -77,7 +78,6 @@ const labels = {
     saveError: "Бағаны сақтау мүмкін болмады.",
     rangeError: "0-ден 100-ге дейінгі бүтін санды енгізіңіз.",
     grade: "Балл",
-    gradeHint: "0–100 енгізіңіз. Ұяшықтан шыққанда балл сақталады.",
     scroll: "Басқа сабақтарды көру үшін кестені оңға жылжытыңыз.",
   },
   en: {
@@ -89,22 +89,23 @@ const labels = {
     moreFilters: "More filters",
     hideFilters: "Hide filters",
     scale: "100-point scale",
-    lessonMetric: "Classes in range",
+    lessonMetric: "Classes today",
     studentMetric: "Students",
     filledMetric: "Scores entered",
     group: "Group",
     week: "Week",
-    from: "From",
-    to: "To",
+    date: "Date",
     student: "Student",
     allStudents: "All students",
     chooseGroup: "Choose a group",
     chooseWeek: "Choose a week",
-    today: "This week",
+    today: "Today",
+    previousDay: "Previous day",
+    nextDay: "Next day",
     loading: "Loading gradebook…",
     noGroups: "You have no available groups yet.",
-    noLessons: "The group has no classes on these dates. Choose another week or date range.",
-    nearestPeriod: "Showing the nearest week in the schedule.",
+    noLessons: "The group has no classes on this day. Choose another date or turn the day.",
+    nearestDay: "Showing the nearest class day in the schedule.",
     noStudents: "No students found.",
     saved: "Grade saved.",
     savedInline: "Saved",
@@ -114,7 +115,6 @@ const labels = {
     saveError: "Could not save the grade.",
     rangeError: "Enter a whole number from 0 to 100.",
     grade: "Score",
-    gradeHint: "Enter 0–100. The score saves when you leave the cell.",
     scroll: "Scroll the table right to see more classes.",
   },
 } as const;
@@ -125,7 +125,8 @@ type Book = {
   students: { id: string; name: string }[];
   lessons: { key: string; date: string; time: string; title: string }[];
   grades: { lessonKey: string; date: string; studentId: string; value: number }[];
-  suggestedPeriod: { from: string; to: string } | null;
+  availableDates: string[];
+  suggestedDate: string | null;
 };
 
 function today() {
@@ -178,6 +179,20 @@ function formatWeekday(date: string, locale: string) {
   });
 }
 
+function formatFullDate(date: string, locale: string) {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function shiftDate(date: string, days: number) {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+}
+
 export function LessonGradebook({ locale }: { locale: string }) {
   const appLocale = normalizeLocale(locale);
   const copy = labels[appLocale];
@@ -195,8 +210,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
       };
     });
   }, [initial.from, dateLocale]);
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
+  const [date, setDate] = useState(today());
   const [week, setWeek] = useState(isoWeek(initial.from));
   const [groupId, setGroupId] = useState("");
   const [studentId, setStudentId] = useState("");
@@ -208,14 +222,14 @@ export function LessonGradebook({ locale }: { locale: string }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showMoreFilters, setShowMoreFilters] = useState(false);
-  const autoSelectPeriod = useRef(true);
+  const autoSelectDate = useRef(true);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
       setLoading(true);
       setError("");
       try {
-        const query = new URLSearchParams({ from, to });
+        const query = new URLSearchParams({ from: date, to: date });
         if (groupId) query.set("groupId", groupId);
         const response = await apiFetch(`/api/v1/lesson-grades?${query}`, {
           cache: "no-store",
@@ -225,20 +239,19 @@ export function LessonGradebook({ locale }: { locale: string }) {
         if (signal.aborted) return;
         if (!response.ok) throw new Error(data?.error?.message || copy.loadError);
         if (
-          autoSelectPeriod.current &&
+          autoSelectDate.current &&
           !data.lessons.length &&
-          data.suggestedPeriod &&
-          (data.suggestedPeriod.from !== from || data.suggestedPeriod.to !== to)
+          data.suggestedDate &&
+          data.suggestedDate !== date
         ) {
-          autoSelectPeriod.current = false;
+          autoSelectDate.current = false;
           setGroupId(data.groupId || "");
-          setFrom(data.suggestedPeriod.from);
-          setTo(data.suggestedPeriod.to);
-          setWeek(isoWeek(data.suggestedPeriod.from));
-          setNotice(copy.nearestPeriod);
+          setDate(data.suggestedDate);
+          setWeek(isoWeek(data.suggestedDate));
+          setNotice(copy.nearestDay);
           return;
         }
-        autoSelectPeriod.current = false;
+        autoSelectDate.current = false;
         setBook(data);
         setGroupId(data.groupId || "");
         const nextGrades = Object.fromEntries(
@@ -259,7 +272,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [from, to, groupId, copy.loadError, copy.nearestPeriod],
+    [date, groupId, copy.loadError, copy.nearestDay],
   );
 
   useEffect(() => {
@@ -342,6 +355,13 @@ export function LessonGradebook({ locale }: { locale: string }) {
       ) ?? 0),
     0,
   );
+  function moveDay(offset: number) {
+    const nextDate = shiftDate(date, offset);
+    autoSelectDate.current = false;
+    setDate(nextDate);
+    setWeek(isoWeek(nextDate));
+    setNotice("");
+  }
   return (
     <div className="app-page-wrap lesson-gradebook-page">
       <header className="app-page-header lesson-gradebook-header">
@@ -362,9 +382,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               <p className="eyebrow">{copy.filters}</p>
               <h2>{copy.groupLessons}</h2>
             </div>
-            <span className="lesson-gradebook-period">
-              {dateLabel(from)} — {dateLabel(to)}
-            </span>
+            <span className="lesson-gradebook-period">{formatFullDate(date, dateLocale)}</span>
           </div>
           <div className={`lesson-gradebook-filters${showMoreFilters ? " is-expanded" : ""}`}>
             <label>
@@ -372,7 +390,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               <select
                 value={groupId}
                 onChange={(event) => {
-                  autoSelectPeriod.current = true;
+                  autoSelectDate.current = true;
                   setGroupId(event.target.value);
                   setStudentId("");
                 }}
@@ -393,19 +411,22 @@ export function LessonGradebook({ locale }: { locale: string }) {
               <select
                 value={week}
                 onChange={(event) => {
-                  autoSelectPeriod.current = false;
+                  autoSelectDate.current = false;
                   const bounds = weekFromInput(event.target.value);
                   setWeek(event.target.value);
                   if (bounds) {
-                    setFrom(bounds.from);
-                    setTo(bounds.to);
+                    setDate(
+                      book?.availableDates.find(
+                        (available) => available >= bounds.from && available <= bounds.to,
+                      ) ?? bounds.from,
+                    );
                   }
                 }}
               >
                 <option value="">{copy.chooseWeek}</option>
                 {week && !weekOptions.some((option) => option.value === week) ? (
                   <option value={week}>
-                    {dateLabel(from)} — {dateLabel(to)}
+                    {dateLabel(weekBounds(date).from)} — {dateLabel(weekBounds(date).to)}
                   </option>
                 ) : null}
                 {weekOptions.map((option) => (
@@ -424,34 +445,20 @@ export function LessonGradebook({ locale }: { locale: string }) {
               {showMoreFilters ? copy.hideFilters : copy.moreFilters}
             </button>
             <label>
-              {copy.from}
+              {copy.date}
               <input
                 type="date"
                 lang={appLocale}
-                value={from}
-                max={to}
+                value={date}
                 onChange={(event) => {
-                  autoSelectPeriod.current = false;
-                  setFrom(event.target.value);
-                  setWeek("");
+                  if (!event.target.value) return;
+                  autoSelectDate.current = false;
+                  setDate(event.target.value);
+                  setWeek(isoWeek(event.target.value));
+                  setNotice("");
                 }}
               />
-              <small className="lesson-gradebook-date-caption">{dateLabel(from)}</small>
-            </label>
-            <label>
-              {copy.to}
-              <input
-                type="date"
-                lang={appLocale}
-                value={to}
-                min={from}
-                onChange={(event) => {
-                  autoSelectPeriod.current = false;
-                  setTo(event.target.value);
-                  setWeek("");
-                }}
-              />
-              <small className="lesson-gradebook-date-caption">{dateLabel(to)}</small>
+              <small className="lesson-gradebook-date-caption">{dateLabel(date)}</small>
             </label>
             <label>
               {copy.student}
@@ -468,11 +475,10 @@ export function LessonGradebook({ locale }: { locale: string }) {
               className="button button-muted lesson-gradebook-current-week"
               type="button"
               onClick={() => {
-                autoSelectPeriod.current = false;
-                const bounds = weekBounds(today());
-                setFrom(bounds.from);
-                setTo(bounds.to);
-                setWeek(isoWeek(bounds.from));
+                autoSelectDate.current = false;
+                const todayDate = today();
+                setDate(todayDate);
+                setWeek(isoWeek(todayDate));
               }}
             >
               {copy.today}
@@ -497,11 +503,8 @@ export function LessonGradebook({ locale }: { locale: string }) {
           <div className="lesson-gradebook-table-heading">
             <div>
               <p className="eyebrow">{copy.journal}</p>
-              <h2>
-                {book?.groups.find((group) => group.id === groupId)?.name ?? copy.groupLessons}
-              </h2>
+              <h2>{formatFullDate(date, dateLocale)}</h2>
             </div>
-            <p id="lesson-gradebook-grade-hint">{copy.gradeHint}</p>
           </div>
           {error ? (
             <p className="schedule-form-error" role="alert">
@@ -565,7 +568,6 @@ export function LessonGradebook({ locale }: { locale: string }) {
                                   pattern="[0-9]*"
                                   maxLength={3}
                                   aria-label={`${copy.grade}: ${student.name}, ${lesson.title}, ${dateLabel(lesson.date)} ${lesson.time}`}
-                                  aria-describedby="lesson-gradebook-grade-hint"
                                   aria-invalid={cellStates[id] === "error"}
                                   placeholder="—"
                                   value={draftGrades[id] ?? ""}
@@ -628,6 +630,29 @@ export function LessonGradebook({ locale }: { locale: string }) {
               </div>
             </>
           )}
+          {book?.groups.length ? (
+            <nav className="lesson-gradebook-day-nav" aria-label={copy.date}>
+              <button
+                className="button button-muted"
+                type="button"
+                aria-label={copy.previousDay}
+                title={copy.previousDay}
+                onClick={() => moveDay(-1)}
+              >
+                <ChevronLeft aria-hidden="true" size={20} />
+              </button>
+              <span aria-live="polite">{formatFullDate(date, dateLocale)}</span>
+              <button
+                className="button button-muted"
+                type="button"
+                aria-label={copy.nextDay}
+                title={copy.nextDay}
+                onClick={() => moveDay(1)}
+              >
+                <ChevronRight aria-hidden="true" size={20} />
+              </button>
+            </nav>
+          ) : null}
         </div>
       </section>
     </div>
