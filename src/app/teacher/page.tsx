@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { CalendarDays, ListFilter } from "lucide-react";
+import { CalendarDays, ClipboardList, ListFilter, ArrowUpRight } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import type { Prisma } from "../../../generated/prisma/client";
 import Link from "next/link";
@@ -8,7 +8,6 @@ import { auth } from "@/lib/auth";
 import { getPrisma } from "@/lib/db/prisma";
 import { getMessages, normalizeLocale } from "@/lib/i18n";
 import { isUserRole } from "@/server/policies/users";
-import { CourseCopyButton } from "./course-copy-button";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +77,6 @@ export default async function TeacherHomePage({
         ],
       },
       include: {
-        teacherAssignments: { where: { teacherId: session.user.id }, select: { id: true } },
         subject: { select: { nameRu: true, nameKk: true, nameEn: true } },
         term: { select: { name: true } },
         academicYear: { select: { name: true } },
@@ -108,14 +106,36 @@ export default async function TeacherHomePage({
       role={session.user.role}
       locale={session.user.locale}
     >
-      <div className="app-page-wrap">
-        <header className="app-page-header">
+      <div className="app-page-wrap teacher-home-page">
+        <header className="app-page-header teacher-home-hero">
           <div>
             <p className="eyebrow">{copy.eyebrow}</p>
             <h1>
               {copy.greeting}, {session.user.firstName}
             </h1>
             <p>{copy.intro}</p>
+            <div className="teacher-home-hero-actions">
+              <Link className="button button-primary" href="/teacher/grades">
+                <ClipboardList aria-hidden="true" size={17} /> Открыть журнал оценок
+              </Link>
+              <Link className="button button-muted" href="/schedule">
+                <CalendarDays aria-hidden="true" size={17} /> Расписание
+              </Link>
+            </div>
+          </div>
+          <div className="teacher-home-hero-stats" aria-label="Сводка преподавателя">
+            <div>
+              <strong>{courses.length}</strong>
+              <span>{copy.assignedCourses}</span>
+            </div>
+            <div>
+              <strong>{pendingReview}</strong>
+              <span>{copy.awaiting}</span>
+            </div>
+            <div>
+              <strong>{groups.length}</strong>
+              <span>Доступных групп</span>
+            </div>
           </div>
         </header>
         <section className="admin-panel">
@@ -129,53 +149,31 @@ export default async function TeacherHomePage({
           {courses.length ? (
             <ul className="course-card-grid">
               {courses.map((course) => (
-                <li className="course-card" key={course.id}>
-                  <span>
-                    {course.specialty.code} · {course.term.name} · {course.academicYear.name}
-                  </span>
-                  <h2>{course.title}</h2>
-                  <p>
-                    {(locale === "kk"
-                      ? course.subject.nameKk
-                      : locale === "en"
-                        ? course.subject.nameEn
-                        : null) ?? course.subject.nameRu}{" "}
-                    · {copy.studentsCount(course._count.enrollments)}
-                  </p>
-                  <div className="course-card-actions">
-                    <Link href={`/courses/${course.slug}`}>{copy.openCourse} →</Link>
-                    {course.teacherAssignments.length ? (
-                      <CourseCopyButton
-                        courseId={course.id}
-                        copyLabel={copy.copyCourse}
-                        copyError={copy.copyError}
-                        copySuccess={copy.courseCopied}
-                      />
-                    ) : (
-                      <span className="course-curator-note">
-                        Предмет группы, которую вы курируете
-                      </span>
-                    )}
-                  </div>
+                <li key={course.id}>
+                  <Link className="course-card" href={`/courses/${course.slug}`}>
+                    <span>
+                      {course.specialty.code} · {course.term.name} · {course.academicYear.name}
+                    </span>
+                    <h2>{course.title}</h2>
+                    <p>
+                      {(locale === "kk"
+                        ? course.subject.nameKk
+                        : locale === "en"
+                          ? course.subject.nameEn
+                          : null) ?? course.subject.nameRu}{" "}
+                      · {copy.studentsCount(course._count.enrollments)}
+                    </p>
+                    <div className="course-card-actions">
+                      <span>{copy.openCourse}</span>
+                      <ArrowUpRight aria-hidden="true" size={17} />
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="admin-empty-state">{copy.noCourses}</p>
           )}
-        </section>
-        <section className="role-welcome-grid">
-          <article className="role-welcome-card">
-            <div className="admin-stat-icon">
-              <CalendarDays aria-hidden="true" size={19} />
-            </div>
-            <p className="eyebrow">{copy.schedule}</p>
-            <h2>{copy.lessons}</h2>
-            <p>{copy.scheduleDetails}</p>
-            <Link className="role-welcome-status" href="/schedule">
-              {copy.openSchedule} →
-            </Link>
-          </article>
         </section>
         <section className="role-dashboard-grid teacher-dashboard-grid">
           <div className="admin-panel">

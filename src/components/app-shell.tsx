@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   GraduationCap,
+  ClipboardList,
   LayoutDashboard,
   Megaphone,
   Users,
@@ -21,7 +22,14 @@ interface AppShellProps {
   role: UserRole;
   locale: string;
   active:
-    "overview" | "users" | "audit" | "academic" | "schedule" | "announcements" | "notifications";
+    | "overview"
+    | "users"
+    | "audit"
+    | "academic"
+    | "schedule"
+    | "grades"
+    | "announcements"
+    | "notifications";
   children: ReactNode;
 }
 
@@ -59,6 +67,12 @@ export function AppShell({ name, role, locale, active, children }: AppShellProps
       ? [
           { href: "/teacher", label: messages.navOverview, key: "overview", icon: LayoutDashboard },
           { href: "/schedule", label: messages.navSchedule, key: "schedule", icon: CalendarDays },
+          {
+            href: "/teacher/grades",
+            label: messages.navLessonGrades,
+            key: "grades",
+            icon: ClipboardList,
+          },
           {
             href: "/announcements",
             label: messages.navAnnouncements,

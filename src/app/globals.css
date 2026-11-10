@@ -1802,6 +1802,325 @@ h2 {
 .course-card-actions > a {
   margin-top: 0;
 }
+
+.teacher-home-page {
+  display: grid;
+  gap: 20px;
+}
+.teacher-home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 28px;
+  align-items: center;
+  padding: 32px;
+  border-radius: 18px;
+  background: linear-gradient(125deg, #42265e 0%, #6c3f8f 70%, #8655a7 100%);
+  color: #fff;
+  box-shadow: 0 18px 35px rgba(66, 38, 94, 0.15);
+}
+.teacher-home-hero .eyebrow,
+.teacher-home-hero p {
+  color: #e9def1;
+}
+.app-page-header.teacher-home-hero > div > p:last-child {
+  color: #e9def1;
+}
+.teacher-home-hero h1 {
+  color: #fff;
+}
+.teacher-home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.teacher-home-hero-actions .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  font-size: 12px;
+}
+.teacher-home-hero-actions .button-primary {
+  background: #fff;
+  color: #4e2f69;
+}
+.teacher-home-hero-actions .button-muted {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+.teacher-home-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.teacher-home-hero-stats div {
+  min-height: 90px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.teacher-home-hero-stats div:first-child {
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+}
+.teacher-home-hero-stats strong {
+  display: block;
+  font:
+    38px/1 Georgia,
+    serif;
+}
+.teacher-home-hero-stats span {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #e9def1;
+}
+.teacher-home-page .course-card-grid > li {
+  min-width: 0;
+}
+.teacher-home-page .course-card {
+  height: 100%;
+  min-height: 180px;
+  padding: 20px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.teacher-home-page .course-card:hover {
+  transform: translateY(-4px);
+  border-color: #cbb2dc;
+  box-shadow: 0 14px 28px rgba(61, 39, 75, 0.12);
+}
+.teacher-home-page .course-card:focus-visible {
+  outline: 3px solid #a77ec5;
+  outline-offset: 3px;
+}
+.teacher-home-page .course-card > span {
+  font-size: 10px;
+}
+.teacher-home-page .course-card h2 {
+  font-size: 22px;
+}
+.teacher-home-page .course-card p {
+  font-size: 12px;
+}
+.teacher-home-page .course-card-actions {
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 700;
+}
+.teacher-home-page .course-card-actions svg {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+.teacher-home-page .course-card:hover .course-card-actions svg {
+  transform: translate(3px, -3px);
+}
+
+.lesson-gradebook-page {
+  max-width: none;
+}
+.lesson-gradebook-header {
+  align-items: end;
+}
+.lesson-gradebook-period {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #f0e9f5;
+  color: #5b3478;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lesson-gradebook-panel {
+  min-width: 0;
+}
+.lesson-gradebook-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 20px 0;
+}
+.lesson-gradebook-filters label {
+  display: grid;
+  gap: 6px;
+  color: #655d6c;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lesson-gradebook-filters input,
+.lesson-gradebook-filters select {
+  min-height: 40px;
+  max-width: 240px;
+  padding: 8px 10px;
+  border: 1px solid #dcd2e3;
+  border-radius: 8px;
+  background: #fff;
+  color: #332b3a;
+  font: inherit;
+}
+.lesson-gradebook-filters input:focus-visible,
+.lesson-gradebook-filters select:focus-visible,
+.lesson-gradebook-table select:focus-visible {
+  outline: 3px solid #a77ec5;
+  outline-offset: 2px;
+}
+.lesson-gradebook-filters .button {
+  min-height: 40px;
+}
+.lesson-gradebook-scroll {
+  width: 100%;
+  max-height: 65vh;
+  overflow: auto;
+  border: 1px solid #eee8f1;
+  border-radius: 11px;
+}
+.lesson-gradebook-scroll-hint {
+  display: none;
+  margin: 0 0 8px;
+  color: #74667d;
+  font-size: 12px;
+}
+.lesson-gradebook-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+.lesson-gradebook-table th,
+.lesson-gradebook-table td {
+  min-width: 125px;
+  padding: 12px;
+  border-right: 1px solid #eee8f1;
+  border-bottom: 1px solid #eee8f1;
+  background: #fff;
+}
+.lesson-gradebook-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f7f3fa;
+  vertical-align: bottom;
+}
+.lesson-gradebook-table thead th strong {
+  display: block;
+  color: #463250;
+  font-size: 12px;
+}
+.lesson-gradebook-table thead th span {
+  display: block;
+  max-width: 150px;
+  margin-top: 5px;
+  color: #73667c;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.lesson-gradebook-table .lesson-gradebook-student {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 190px;
+  max-width: 230px;
+  color: #302738;
+  font-size: 12px;
+  font-weight: 700;
+}
+.lesson-gradebook-table thead .lesson-gradebook-student {
+  z-index: 3;
+  background: #f7f3fa;
+}
+.lesson-gradebook-table tbody tr:hover th,
+.lesson-gradebook-table tbody tr:hover td {
+  background: #fcf9fe;
+}
+.lesson-gradebook-table select {
+  width: 70px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid #ded3e5;
+  border-radius: 7px;
+  background: #fff;
+  color: #4e2f69;
+  font-size: 12px;
+  font-weight: 700;
+}
+.report-modal-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(27, 17, 33, 0.58);
+}
+.report-modal {
+  width: min(1100px, 100%);
+  max-height: min(88vh, 900px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 25px 80px rgba(20, 12, 25, 0.28);
+}
+.report-modal-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 20px;
+}
+.report-modal-heading h2 {
+  margin: 4px 0 16px;
+}
+@media (max-width: 800px) {
+  .teacher-home-hero {
+    grid-template-columns: 1fr;
+  }
+  .teacher-home-hero-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .teacher-home-hero-stats div:first-child {
+    grid-row: auto;
+  }
+  .lesson-gradebook-period {
+    display: none;
+  }
+}
+@media (max-width: 540px) {
+  .lesson-gradebook-scroll-hint {
+    display: block;
+  }
+  .teacher-home-hero {
+    padding: 24px;
+  }
+  .teacher-home-hero-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .report-modal {
+    padding: 18px;
+  }
+  .lesson-gradebook-filters label {
+    flex: 1 1 130px;
+  }
+  .lesson-gradebook-filters input,
+  .lesson-gradebook-filters select {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .teacher-home-page .course-card,
+  .teacher-home-page .course-card-actions svg {
+    transition: none;
+  }
+}
 .course-card-copy-action {
   display: contents;
 }

@@ -4,7 +4,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { getMessages, normalizeLocale, type AppLocale } from "@/lib/i18n";
 import type { ImportedScheduleView } from "@/server/services/schedule-import";
@@ -84,10 +84,7 @@ async function readResponse(response: Response, fallback: string) {
 }
 
 function toLocalIsoDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return date.toLocaleDateString("sv-SE", { timeZone: "Asia/Almaty" });
 }
 
 function ScheduleForm({
@@ -525,6 +522,40 @@ function AttendanceReportPanel({
   const [to, setTo] = useState(initial.to);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = [
+        ...dialogRef.current.querySelectorAll<HTMLElement>(
+          "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled])",
+        ),
+      ];
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [open]);
   async function refresh(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -553,99 +584,144 @@ function AttendanceReportPanel({
           {report.total} {t.report.totalMarks}
         </span>
       </div>
-      <form className="attendance-date-row" onSubmit={refresh}>
-        <label>
-          {t.report.from}
-          <input
-            required
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-          />
-        </label>
-        <label>
-          {t.report.to}
-          <input required type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        </label>
-        <button className="button button-primary" disabled={busy}>
-          {busy ? t.report.loading : t.report.refresh}
-        </button>
-      </form>
-      {!student ? (
-        <div className="attendance-report-export-actions">
-          <a
-            className="button button-muted attendance-report-export"
-            href={`/api/v1/attendance/report?format=csv&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+      <button
+        ref={triggerRef}
+        className="button button-primary"
+        type="button"
+        onClick={() => setOpen(true)}
+      >
+        {t.report.preview}
+      </button>
+      {open ? (
+        <div
+          className="report-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
+          <div
+            ref={dialogRef}
+            className="report-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={student ? t.report.myAttendance : t.report.studentAttendance}
           >
-            {t.report.downloadCsv}
-          </a>
-          <a
-            className="button button-muted attendance-report-export"
-            href={`/api/v1/attendance/report?format=xlsx&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
-          >
-            {t.report.downloadXlsx}
-          </a>
+            <div className="report-modal-heading">
+              <div>
+                <p className="eyebrow">{t.report.eyebrow}</p>
+                <h2>{student ? t.report.myAttendance : t.report.studentAttendance}</h2>
+              </div>
+              <button
+                className="button button-muted"
+                type="button"
+                autoFocus
+                onClick={() => setOpen(false)}
+                aria-label={t.report.close}
+              >
+                {t.report.close} ✕
+              </button>
+            </div>
+            <form className="attendance-date-row" onSubmit={refresh}>
+              <label>
+                {t.report.from}
+                <input
+                  required
+                  type="date"
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                />
+              </label>
+              <label>
+                {t.report.to}
+                <input
+                  required
+                  type="date"
+                  value={to}
+                  onChange={(event) => setTo(event.target.value)}
+                />
+              </label>
+              <button className="button button-primary" disabled={busy}>
+                {busy ? t.report.loading : t.report.refresh}
+              </button>
+            </form>
+            {!student ? (
+              <div className="attendance-report-export-actions">
+                <a
+                  className="button button-muted attendance-report-export"
+                  href={`/api/v1/attendance/report?format=csv&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+                >
+                  {t.report.downloadCsv}
+                </a>
+                <a
+                  className="button button-muted attendance-report-export"
+                  href={`/api/v1/attendance/report?format=xlsx&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+                >
+                  {t.report.downloadXlsx}
+                </a>
+              </div>
+            ) : null}
+            {error ? (
+              <p className="schedule-form-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+            {report.items.length ? (
+              <div className="schedule-report-scroll">
+                <table className="attendance-report-table">
+                  <thead>
+                    <tr>
+                      <th>{t.report.student}</th>
+                      <th>{t.report.group}</th>
+                      <th>{t.report.course}</th>
+                      <th>{t.report.total}</th>
+                      <th>{t.report.present}</th>
+                      <th>{t.report.absent}</th>
+                      <th>{t.report.late}</th>
+                      <th>{t.report.excused}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.items.map((item) => (
+                      <tr key={`${item.studentId}:${item.course}`}>
+                        <td>{item.studentName}</td>
+                        <td>{item.group}</td>
+                        <td>{item.course}</td>
+                        <td>{item.total}</td>
+                        <td>{item.PRESENT}</td>
+                        <td>{item.ABSENT}</td>
+                        <td>{item.LATE}</td>
+                        <td>{item.EXCUSED}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="course-material-empty">{t.report.empty}</p>
+            )}
+            {report.records.length ? (
+              <details className="attendance-detail-list">
+                <summary>{t.report.showRecords}</summary>
+                <ul>
+                  {report.records.slice(0, 100).map((record) => (
+                    <li key={record.id}>
+                      <span>
+                        {new Date(record.date + "T00:00:00").toLocaleDateString(dateLocale)} ·{" "}
+                        {record.startTime} · {record.course} · {record.group}
+                      </span>
+                      <strong>
+                        {record.student.name}:{" "}
+                        {t.attendanceLabels[record.status as keyof typeof t.attendanceLabels] ??
+                          record.status}
+                      </strong>
+                      {record.note ? <small>{record.note}</small> : null}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </div>
         </div>
-      ) : null}
-      {error ? (
-        <p className="schedule-form-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      {report.items.length ? (
-        <div className="schedule-report-scroll">
-          <table className="attendance-report-table">
-            <thead>
-              <tr>
-                <th>{t.report.student}</th>
-                <th>{t.report.group}</th>
-                <th>{t.report.course}</th>
-                <th>{t.report.total}</th>
-                <th>{t.report.present}</th>
-                <th>{t.report.absent}</th>
-                <th>{t.report.late}</th>
-                <th>{t.report.excused}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.items.map((item) => (
-                <tr key={`${item.studentId}:${item.course}`}>
-                  <td>{item.studentName}</td>
-                  <td>{item.group}</td>
-                  <td>{item.course}</td>
-                  <td>{item.total}</td>
-                  <td>{item.PRESENT}</td>
-                  <td>{item.ABSENT}</td>
-                  <td>{item.LATE}</td>
-                  <td>{item.EXCUSED}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="course-material-empty">{t.report.empty}</p>
-      )}
-      {report.records.length ? (
-        <details className="attendance-detail-list">
-          <summary>{t.report.showRecords}</summary>
-          <ul>
-            {report.records.slice(0, 100).map((record) => (
-              <li key={record.id}>
-                <span>
-                  {new Date(record.date + "T00:00:00").toLocaleDateString(dateLocale)} ·{" "}
-                  {record.startTime} · {record.course} · {record.group}
-                </span>
-                <strong>
-                  {record.student.name}:{" "}
-                  {t.attendanceLabels[record.status as keyof typeof t.attendanceLabels] ??
-                    record.status}
-                </strong>
-                {record.note ? <small>{record.note}</small> : null}
-              </li>
-            ))}
-          </ul>
-        </details>
       ) : null}
     </section>
   );
@@ -763,8 +839,12 @@ function ImportedSchedulePanel({
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState("");
   const weeks = initial?.summary.weeks ?? [];
-  const [week, setWeek] = useState(String(weeks[0] ?? ""));
-  const [date, setDate] = useState("");
+  const [week, setWeek] = useState(
+    String(
+      initial?.entries.find((entry) => entry.date === toLocalIsoDate())?.week ?? weeks[0] ?? "",
+    ),
+  );
+  const [date, setDate] = useState(toLocalIsoDate);
   const [group, setGroup] = useState("");
   const [attendanceGroupId, setAttendanceGroupId] = useState<string | null>(null);
   const [tableZoom, setTableZoom] = useState(1);
@@ -784,11 +864,12 @@ function ImportedSchedulePanel({
   }, [tableExpanded]);
   const visibleWeek = Number(week);
   const dates = [
-    ...new Set(
-      (initial?.entries ?? [])
+    ...new Set([
+      toLocalIsoDate(),
+      ...(initial?.entries ?? [])
         .filter((entry) => entry.week === visibleWeek)
         .map((entry) => entry.date),
-    ),
+    ]),
   ].sort();
   const selectedDate = dates.includes(date) ? date : (dates[0] ?? "");
   const groups = [

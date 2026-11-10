@@ -192,6 +192,8 @@ model User {
   groupDailyAttendanceRecords GroupDailyAttendance[]     @relation("GroupDailyAttendanceStudent")
   importedAttendanceMarked    ScheduleImportAttendance[] @relation("ImportedAttendanceMarker")
   importedAttendanceRecords   ScheduleImportAttendance[] @relation("ImportedAttendanceStudent")
+  lessonGradesReceived         LessonGrade[]              @relation("LessonGradeStudent")
+  lessonGradesSet              LessonGrade[]              @relation("LessonGradeTeacher")
   testsCreated                Test[]                     @relation("TestCreator")
   testsUpdated                Test[]                     @relation("TestUpdater")
   testAttempts                TestAttempt[]
@@ -356,6 +358,7 @@ model StudyGroup {
   enrollments         Enrollment[]
   scheduleEntries     ScheduleEntry[]
   dailyAttendance     GroupDailyAttendance[]
+  lessonGrades         LessonGrade[]
   announcements       Announcement[]
   announcementTargets AnnouncementGroupTarget[]
 
@@ -677,6 +680,25 @@ model FinalGrade {
   @@unique([courseId, studentId])
   @@index([studentId, setAt])
   @@map("final_grades")
+}
+
+model LessonGrade {
+  id          String     @id @default(uuid()) @db.Uuid
+  lessonKey   String     @map("lesson_key") @db.VarChar(100)
+  sessionDate DateTime   @map("session_date") @db.Date
+  groupId     String     @map("group_id") @db.Uuid
+  studentId   String     @map("student_id") @db.Uuid
+  value       Int
+  setById     String     @map("set_by") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  group       StudyGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  student     User       @relation("LessonGradeStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  setBy       User       @relation("LessonGradeTeacher", fields: [setById], references: [id], onDelete: Restrict)
+
+  @@unique([lessonKey, sessionDate, studentId])
+  @@index([groupId, sessionDate])
+  @@map("lesson_grades")
 }
 
 model ScheduleEntry {
