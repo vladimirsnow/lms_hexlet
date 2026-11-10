@@ -41,32 +41,47 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
     throw new ApiError(422, "INVALID_PERIOD", "Выберите период не длиннее 63 дней.");
   }
   const prisma = getPrisma();
-  const groups = await prisma.studyGroup.findMany({
-    where: {
-      isActive: true,
-      OR: [
-        { curatorId: actor.id },
-        { scheduleEntries: { some: { teacherId: actor.id } } },
-        {
-          enrollments: {
-            some: {
-              status: "ACTIVE",
-              course: { teacherAssignments: { some: { teacherId: actor.id } } },
+  const [groups, latestImport] = await Promise.all([
+    prisma.studyGroup.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { curatorId: actor.id },
+          { scheduleEntries: { some: { teacherId: actor.id } } },
+          {
+            enrollments: {
+              some: {
+                status: "ACTIVE",
+                course: { teacherAssignments: { some: { teacherId: actor.id } } },
+              },
             },
           },
-        },
-      ],
-    },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-  const groupId = parsed.data.groupId ?? groups[0]?.id ?? null;
+        ],
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.scheduleImport.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { entries: true },
+    }),
+  ]);
+  const imported = (latestImport?.entries ?? []) as unknown as ImportedLesson[];
+  const groupId =
+    parsed.data.groupId ??
+    groups.find((group) =>
+      imported.some((entry) => entry.groupId === group.id && dateInRange(entry.date, from, to)),
+    )?.id ??
+    groups.find((group) => imported.some((entry) => entry.groupId === group.id))?.id ??
+    groups[0]?.id ??
+    null;
   if (groupId && !groups.some((group) => group.id === groupId)) {
     throw new ApiError(403, "FORBIDDEN", "Эта группа вам недоступна.");
   }
-  if (!groupId) return { groups, groupId: null, students: [], lessons: [], grades: [] };
+  if (!groupId)
+    return { groups, groupId: null, students: [], lessons: [], grades: [], suggestedPeriod: null };
 
-  const [members, entries, imported, assignedCourses, grades] = await Promise.all([
+  const [members, entries, grades] = await Promise.all([
     prisma.groupMember.findMany({
       where: { groupId, leftAt: null, student: { status: "ACTIVE", deletedAt: null } },
       select: { student: { select: { id: true, name: true } } },
@@ -75,8 +90,8 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
     prisma.scheduleEntry.findMany({
       where: {
         groupId,
-        teacherId: actor.id,
-        OR: [{ deletedAt: null }, { deletedAt: { gte: new Date(`${from}T00:00:00Z`) } }],
+        OR: [{ teacherId: actor.id }, { group: { curatorId: actor.id } }],
+        AND: [{ OR: [{ deletedAt: null }, { deletedAt: { gte: new Date(`${from}T00:00:00Z`) } }] }],
         term: {
           startsOn: { lte: new Date(`${to}T00:00:00Z`) },
           endsOn: { gte: new Date(`${from}T00:00:00Z`) },
@@ -92,18 +107,6 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
         term: { select: { startsOn: true, endsOn: true } },
         course: { select: { title: true } },
       },
-    }),
-    prisma.scheduleImport.findMany({
-      orderBy: { createdAt: "desc" },
-      select: { entries: true },
-    }),
-    prisma.course.findMany({
-      where: {
-        deletedAt: null,
-        teacherAssignments: { some: { teacherId: actor.id } },
-        enrollments: { some: { groupId, status: "ACTIVE" } },
-      },
-      select: { title: true, subject: { select: { nameRu: true, nameKk: true, nameEn: true } } },
     }),
     prisma.lessonGrade.findMany({
       where: {
@@ -144,36 +147,22 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
       });
     }
   }
-  const taughtSubjects = new Set(
-    assignedCourses
-      .flatMap((course) => [
-        course.title,
-        course.subject.nameRu,
-        course.subject.nameKk,
-        course.subject.nameEn,
-      ])
-      .filter(Boolean)
-      .map((name) => name!.trim().toLocaleLowerCase("ru")),
-  );
   const seenImportedLessons = new Set<string>();
-  const manualSlots = new Set(
-    lessons.map(
-      (lesson) => `${lesson.date}:${lesson.time}:${lesson.title.trim().toLocaleLowerCase("ru")}`,
-    ),
-  );
-  for (const schedule of imported) {
-    for (const entry of schedule.entries as unknown as ImportedLesson[]) {
-      if (entry.groupId !== groupId || !dateInRange(entry.date, from, to)) continue;
-      const subject = entry.subject.trim().toLocaleLowerCase("ru");
-      if (!taughtSubjects.has(subject)) continue;
-      if (manualSlots.has(`${entry.date}:${entry.startTime}:${subject}`)) continue;
-      const subjectHash = createHash("sha256").update(subject).digest("hex").slice(0, 12);
-      const key = `import:${groupId}:${entry.pair}:${entry.startTime}:${subjectHash}`;
-      const occurrence = `${key}:${entry.date}`;
-      if (seenImportedLessons.has(occurrence)) continue;
-      seenImportedLessons.add(occurrence);
-      lessons.push({ key, date: entry.date, time: entry.startTime, title: entry.subject });
+  const manualSlots = new Map(lessons.map((lesson) => [`${lesson.date}:${lesson.time}`, lesson]));
+  for (const entry of imported) {
+    if (entry.groupId !== groupId || !dateInRange(entry.date, from, to)) continue;
+    const subject = entry.subject.trim().toLocaleLowerCase("ru");
+    const manualLesson = manualSlots.get(`${entry.date}:${entry.startTime}`);
+    if (manualLesson) {
+      manualLesson.title = entry.subject;
+      continue;
     }
+    const subjectHash = createHash("sha256").update(subject).digest("hex").slice(0, 12);
+    const key = `import:${groupId}:${entry.pair}:${entry.startTime}:${subjectHash}`;
+    const occurrence = `${key}:${entry.date}`;
+    if (seenImportedLessons.has(occurrence)) continue;
+    seenImportedLessons.add(occurrence);
+    lessons.push({ key, date: entry.date, time: entry.startTime, title: entry.subject });
   }
   lessons.sort(
     (a, b) =>
@@ -183,11 +172,36 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
   );
   const visibleKeys = new Set(lessons.map((lesson) => `${lesson.key}:${lesson.date}`));
   const studentIds = new Set(members.map(({ student }) => student.id));
+  const availableDates = [
+    ...new Set(imported.filter((entry) => entry.groupId === groupId).map((entry) => entry.date)),
+  ].filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date));
+  const nearestDate = !lessons.length
+    ? availableDates.sort((a, b) => {
+        const distance = (date: string) =>
+          date < from
+            ? Date.parse(from) - Date.parse(date)
+            : date > to
+              ? Date.parse(date) - Date.parse(to)
+              : 0;
+        return distance(a) - distance(b) || a.localeCompare(b);
+      })[0]
+    : undefined;
+  const suggestedPeriod = nearestDate
+    ? (() => {
+        const day = new Date(`${nearestDate}T00:00:00Z`);
+        const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86400000);
+        return {
+          from: monday.toISOString().slice(0, 10),
+          to: new Date(monday.getTime() + 6 * 86400000).toISOString().slice(0, 10),
+        };
+      })()
+    : null;
   return {
     groups,
     groupId,
     students: members.map(({ student }) => student),
     lessons,
+    suggestedPeriod,
     grades: grades
       .filter(
         (grade) =>

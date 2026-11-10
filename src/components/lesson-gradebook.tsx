@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-fetch";
 import { normalizeLocale } from "@/lib/i18n";
 
@@ -22,7 +22,9 @@ const labels = {
     today: "Сегодня",
     loading: "Загружаем журнал…",
     noGroups: "У вас пока нет доступных групп.",
-    noLessons: "На выбранные даты ваших пар нет. Выберите другую неделю или период.",
+    noLessons:
+      "На выбранные даты в расписании группы нет занятий. Выберите другую неделю или период.",
+    nearestPeriod: "Показана ближайшая неделя из расписания.",
     noStudents: "Студенты не найдены.",
     saved: "Оценка сохранена.",
     savedInline: "Сохранено",
@@ -50,7 +52,8 @@ const labels = {
     today: "Бүгін",
     loading: "Журнал жүктелуде…",
     noGroups: "Қолжетімді топтар әлі жоқ.",
-    noLessons: "Таңдалған күндерде сабақтарыңыз жоқ. Басқа апта не кезең таңдаңыз.",
+    noLessons: "Таңдалған күндерде топ кестесінде сабақ жоқ. Басқа апта не кезең таңдаңыз.",
+    nearestPeriod: "Кестедегі ең жақын апта көрсетілді.",
     noStudents: "Студенттер табылмады.",
     saved: "Баға сақталды.",
     savedInline: "Сақталды",
@@ -78,7 +81,8 @@ const labels = {
     today: "Today",
     loading: "Loading gradebook…",
     noGroups: "You have no available groups yet.",
-    noLessons: "You have no classes on these dates. Choose another week or date range.",
+    noLessons: "The group has no classes on these dates. Choose another week or date range.",
+    nearestPeriod: "Showing the nearest week in the schedule.",
     noStudents: "No students found.",
     saved: "Grade saved.",
     savedInline: "Saved",
@@ -97,6 +101,7 @@ type Book = {
   students: { id: string; name: string }[];
   lessons: { key: string; date: string; time: string; title: string }[];
   grades: { lessonKey: string; date: string; studentId: string; value: number }[];
+  suggestedPeriod: { from: string; to: string } | null;
 };
 
 function today() {
@@ -172,6 +177,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
   const [failedCell, setFailedCell] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const autoSelectPeriod = useRef(true);
 
   const load = useCallback(
     async (signal: AbortSignal) => {
@@ -187,6 +193,21 @@ export function LessonGradebook({ locale }: { locale: string }) {
         const data = await response.json();
         if (signal.aborted) return;
         if (!response.ok) throw new Error(data?.error?.message || copy.loadError);
+        if (
+          autoSelectPeriod.current &&
+          !data.lessons.length &&
+          data.suggestedPeriod &&
+          (data.suggestedPeriod.from !== from || data.suggestedPeriod.to !== to)
+        ) {
+          autoSelectPeriod.current = false;
+          setGroupId(data.groupId || "");
+          setFrom(data.suggestedPeriod.from);
+          setTo(data.suggestedPeriod.to);
+          setWeek(isoWeek(data.suggestedPeriod.from));
+          setNotice(copy.nearestPeriod);
+          return;
+        }
+        autoSelectPeriod.current = false;
         setBook(data);
         setGroupId(data.groupId || "");
         setGrades(
@@ -204,7 +225,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [from, to, groupId, copy.loadError],
+    [from, to, groupId, copy.loadError, copy.nearestPeriod],
   );
 
   useEffect(() => {
@@ -298,6 +319,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
             <select
               value={groupId}
               onChange={(event) => {
+                autoSelectPeriod.current = true;
                 setGroupId(event.target.value);
                 setStudentId("");
               }}
@@ -318,6 +340,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
             <select
               value={week}
               onChange={(event) => {
+                autoSelectPeriod.current = false;
                 const bounds = weekFromInput(event.target.value);
                 setWeek(event.target.value);
                 if (bounds) {
@@ -327,6 +350,11 @@ export function LessonGradebook({ locale }: { locale: string }) {
               }}
             >
               <option value="">{copy.chooseWeek}</option>
+              {week && !weekOptions.some((option) => option.value === week) ? (
+                <option value={week}>
+                  {dateLabel(from)} — {dateLabel(to)}
+                </option>
+              ) : null}
               {weekOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -342,6 +370,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               value={from}
               max={to}
               onChange={(event) => {
+                autoSelectPeriod.current = false;
                 setFrom(event.target.value);
                 setWeek("");
               }}
@@ -356,6 +385,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               value={to}
               min={from}
               onChange={(event) => {
+                autoSelectPeriod.current = false;
                 setTo(event.target.value);
                 setWeek("");
               }}
