@@ -7,6 +7,7 @@ import {
   getGroupDailyAttendance,
   markGroupDailyAttendance,
 } from "@/server/services/group-daily-attendance";
+import { getImportedSchedule } from "@/server/services/schedule-import";
 
 const idSchema = z.uuid();
 const dateSchema = z.iso.date();
@@ -787,6 +788,7 @@ function icsDate(date: Date, minute: number): string {
 }
 
 export async function exportScheduleIcs(actor: Actor): Promise<string> {
+  const importedSchedule = await getImportedSchedule(actor);
   const entries = await getPrisma().scheduleEntry.findMany({
     where:
       actor.role === "STUDENT"
@@ -859,6 +861,20 @@ export async function exportScheduleIcs(actor: Actor): Promise<string> {
       }
       current.setUTCDate(current.getUTCDate() + 1);
     }
+  }
+  for (const [index, entry] of (importedSchedule?.entries ?? []).entries()) {
+    const description = [entry.groupName, entry.teacher].filter(Boolean).join(" · ");
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${importedSchedule!.id}-${index}@kzhexly.local`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;TZID=Asia/Almaty:${icsDate(new Date(`${entry.date}T00:00:00.000Z`), toMinute(entry.startTime))}`,
+      `DTEND;TZID=Asia/Almaty:${icsDate(new Date(`${entry.date}T00:00:00.000Z`), toMinute(entry.endTime))}`,
+      `SUMMARY:${escapeIcs(entry.subject)}`,
+      `DESCRIPTION:${escapeIcs(description)}`,
+      ...(entry.room ? [`LOCATION:${escapeIcs(entry.room)}`] : []),
+      "END:VEVENT",
+    );
   }
   lines.push("END:VCALENDAR");
   return `${lines.join("\r\n")}\r\n`;

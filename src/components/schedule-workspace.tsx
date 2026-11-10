@@ -9,6 +9,7 @@ import { Upload } from "lucide-react";
 import { getMessages, normalizeLocale, type AppLocale } from "@/lib/i18n";
 import type { ImportedScheduleView } from "@/server/services/schedule-import";
 import type { ImportedLesson } from "@/server/services/schedule-xlsx";
+import { SchedulePlanner } from "@/components/schedule-planner";
 
 type ScheduleEntry = {
   id: string;
@@ -807,6 +808,7 @@ export function ScheduleWorkspace({
           t={t}
         />
       ) : null}
+      {admin ? <SchedulePlanner /> : null}
       {entries.some((entry) => entry.canMarkAttendance) && !importedSchedule?.entries.length ? (
         <GroupAttendancePanel entries={entries.filter((entry) => entry.canMarkAttendance)} t={t} />
       ) : null}
@@ -886,7 +888,6 @@ function ImportedSchedulePanel({
   const visibleWeek = Number(week);
   const dates = [
     ...new Set([
-      toLocalIsoDate(),
       ...(initial?.entries ?? [])
         .filter((entry) => entry.week === visibleWeek)
         .map((entry) => entry.date),

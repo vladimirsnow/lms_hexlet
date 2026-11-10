@@ -25,7 +25,11 @@ export default async function AcademicPage() {
     await Promise.all([
       prisma.academicYear.findMany({ orderBy: { startsOn: "desc" }, take: 100 }),
       prisma.term.findMany({ orderBy: { startsOn: "desc" }, take: 100 }),
-      prisma.specialty.findMany({ orderBy: { nameRu: "asc" }, take: 100 }),
+      prisma.specialty.findMany({
+        where: { code: { not: { startsWith: "DEMO-" } } },
+        orderBy: { nameRu: "asc" },
+        take: 100,
+      }),
       prisma.studyGroup.findMany({
         include: {
           academicYear: { select: { name: true } },
@@ -40,9 +44,13 @@ export default async function AcademicPage() {
         orderBy: { name: "asc" },
         take: 100,
       }),
-      prisma.subject.findMany({ orderBy: { nameRu: "asc" }, take: 100 }),
+      prisma.subject.findMany({
+        where: { code: { not: { startsWith: "DEMO-" } } },
+        orderBy: { nameRu: "asc" },
+        take: 100,
+      }),
       prisma.course.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, slug: { not: { startsWith: "demo-" } } },
         include: {
           subject: { select: { nameRu: true } },
           term: { select: { name: true } },
@@ -51,7 +59,7 @@ export default async function AcademicPage() {
           _count: { select: { enrollments: true } },
         },
         orderBy: { createdAt: "desc" },
-        take: 100,
+        take: 500,
       }),
       prisma.user.findMany({
         where: { role: "TEACHER", status: "ACTIVE", deletedAt: null },
