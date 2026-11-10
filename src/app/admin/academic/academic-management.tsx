@@ -45,7 +45,7 @@ type AcademicData = {
     subject: { nameRu: string };
     term: { name: string };
     academicYear: { name: string };
-    specialty: { code: string };
+    specialty: { nameRu: string };
     _count: { enrollments: number };
   }>;
   teachers: Array<{ id: string; name: string; email: string }>;
@@ -499,7 +499,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                     .filter((item) => item.isActive)
                     .map((item) => (
                       <option value={item.id} key={item.id}>
-                        {item.code} · {item.nameRu}
+                        {item.nameRu}
                       </option>
                     ))}
                 </select>
@@ -631,7 +631,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                     .filter((item) => item.isActive)
                     .map((group) => (
                       <option value={group.id} key={group.id}>
-                        {group.name} · {group.specialty.code} · {group.academicYear.name}
+                        {group.name} · {group.specialty.nameRu} · {group.academicYear.name}
                       </option>
                     ))}
                 </select>
@@ -730,7 +730,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
             items={data.groups.map((item) => ({
               id: item.id,
               title: item.name,
-              meta: `${item.specialty.code} · ${item.academicYear.name} · ${item._count.memberships} ${t.records.students} · ${t.labels.curator}: ${item.curator?.name ?? t.help.unassigned}${item.isActive ? "" : ` · ${t.records.archivedF}`}`,
+              meta: `${item.specialty.nameRu} · ${item.academicYear.name} · ${item._count.memberships} ${t.records.students} · ${t.labels.curator}: ${item.curator?.name ?? t.help.unassigned}${item.isActive ? "" : ` · ${t.records.archivedF}`}`,
             }))}
             resource="groups"
             busy={busy}
@@ -826,7 +826,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                     .filter((item) => item.isActive)
                     .map((item) => (
                       <option value={item.id} key={item.id}>
-                        {item.code} · {item.nameRu}
+                        {item.nameRu}
                       </option>
                     ))}
                 </select>
@@ -868,7 +868,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                     .filter((item) => item.isActive)
                     .map((item) => (
                       <option value={item.id} key={item.id}>
-                        {item.code} · {item.nameRu}
+                        {item.nameRu}
                       </option>
                     ))}
                 </select>
@@ -975,7 +975,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                       .filter((item) => item.isActive)
                       .map((group) => (
                         <option key={group.id} value={group.id}>
-                          {group.name} · {group.specialty.code} · {group.academicYear.name}
+                          {group.name} · {group.specialty.nameRu} · {group.academicYear.name}
                         </option>
                       ))}
                   </select>
@@ -1028,7 +1028,7 @@ export function AcademicManagement({ locale, ...data }: AcademicData & { locale:
                     <div>
                       <strong>{course.title}</strong>
                       <span>
-                        {course.subject.nameRu} · {course.specialty.code} ·{" "}
+                        {course.subject.nameRu} · {course.specialty.nameRu} ·{" "}
                         {course.academicYear.name} · {course.term.name}
                       </span>
                       <small>

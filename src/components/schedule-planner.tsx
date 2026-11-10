@@ -33,7 +33,7 @@ type Data = {
     title: string;
     termId: string;
     specialtyId: string;
-    specialtyCode: string;
+    specialtyName: string;
     teachers: { id: string; name: string }[];
   }[];
   teachers: { id: string; name: string }[];
@@ -513,7 +513,7 @@ export function SchedulePlanner() {
             <option value="">Все курсы</option>
             {filterCourses.map((course) => (
               <option key={course.id} value={course.id}>
-                {course.title} · {course.specialtyCode}
+                {course.title} · {course.specialtyName}
               </option>
             ))}
           </select>

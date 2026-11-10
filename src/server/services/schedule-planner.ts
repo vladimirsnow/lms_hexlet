@@ -58,7 +58,7 @@ export async function getPlannerData(actor: Actor, termId?: string) {
         termId: true,
         academicYearId: true,
         specialtyId: true,
-        specialty: { select: { code: true } },
+        specialty: { select: { nameRu: true } },
         teacherAssignments: {
           select: { teacher: { select: { id: true, name: true, status: true } } },
         },
@@ -167,7 +167,7 @@ export async function getPlannerData(actor: Actor, termId?: string) {
       termId: item.termId,
       academicYearId: item.academicYearId,
       specialtyId: item.specialtyId,
-      specialtyCode: item.specialty.code,
+      specialtyName: item.specialty.nameRu,
       teachers: item.teacherAssignments
         .filter((assignment) => assignment.teacher.status === "ACTIVE")
         .map((assignment) => ({ id: assignment.teacher.id, name: assignment.teacher.name })),

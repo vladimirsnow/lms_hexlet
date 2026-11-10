@@ -55,7 +55,7 @@ export default async function AcademicPage() {
           subject: { select: { nameRu: true } },
           term: { select: { name: true } },
           academicYear: { select: { name: true } },
-          specialty: { select: { code: true } },
+          specialty: { select: { nameRu: true } },
           _count: { select: { enrollments: true } },
         },
         orderBy: { createdAt: "desc" },
