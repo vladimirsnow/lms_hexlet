@@ -525,6 +525,15 @@ function AttendanceReportPanel({
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const displayDate = (value: string) =>
+    value
+      ? new Date(`${value}T00:00:00Z`).toLocaleDateString(dateLocale, {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC",
+        })
+      : "—";
   useEffect(() => {
     if (!open) return;
     const trigger = triggerRef.current;
@@ -627,18 +636,22 @@ function AttendanceReportPanel({
                 <input
                   required
                   type="date"
+                  lang={dateLocale.slice(0, 2)}
                   value={from}
                   onChange={(event) => setFrom(event.target.value)}
                 />
+                <small className="report-date-caption">{displayDate(from)}</small>
               </label>
               <label>
                 {t.report.to}
                 <input
                   required
                   type="date"
+                  lang={dateLocale.slice(0, 2)}
                   value={to}
                   onChange={(event) => setTo(event.target.value)}
                 />
+                <small className="report-date-caption">{displayDate(to)}</small>
               </label>
               <button className="button button-primary" disabled={busy}>
                 {busy ? t.report.loading : t.report.refresh}
@@ -646,18 +659,26 @@ function AttendanceReportPanel({
             </form>
             {!student ? (
               <div className="attendance-report-export-actions">
-                <a
-                  className="button button-muted attendance-report-export"
-                  href={`/api/v1/attendance/report?format=csv&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
-                >
-                  {t.report.downloadCsv}
-                </a>
-                <a
-                  className="button button-muted attendance-report-export"
-                  href={`/api/v1/attendance/report?format=xlsx&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
-                >
-                  {t.report.downloadXlsx}
-                </a>
+                {(["csv", "xlsx"] as const).map((format) =>
+                  report.records.length ? (
+                    <a
+                      key={format}
+                      className="button button-muted attendance-report-export"
+                      href={`/api/v1/attendance/report?format=${format}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}
+                    >
+                      {format === "csv" ? t.report.downloadCsv : t.report.downloadXlsx}
+                    </a>
+                  ) : (
+                    <button
+                      key={format}
+                      className="button button-muted attendance-report-export"
+                      type="button"
+                      disabled
+                    >
+                      {format === "csv" ? t.report.downloadCsv : t.report.downloadXlsx}
+                    </button>
+                  ),
+                )}
               </div>
             ) : null}
             {error ? (

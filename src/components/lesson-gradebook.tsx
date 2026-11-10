@@ -18,12 +18,16 @@ const labels = {
     student: "Студент",
     allStudents: "Все студенты",
     chooseGroup: "Выберите группу",
+    chooseWeek: "Выберите неделю",
     today: "Сегодня",
     loading: "Загружаем журнал…",
     noGroups: "У вас пока нет доступных групп.",
     noLessons: "На выбранные даты ваших пар нет. Выберите другую неделю или период.",
     noStudents: "Студенты не найдены.",
     saved: "Оценка сохранена.",
+    savedInline: "Сохранено",
+    savingInline: "Сохраняем…",
+    errorInline: "Ошибка",
     loadError: "Не удалось загрузить журнал.",
     saveError: "Не удалось сохранить оценку.",
     grade: "Оценка",
@@ -42,12 +46,16 @@ const labels = {
     student: "Студент",
     allStudents: "Барлық студенттер",
     chooseGroup: "Топты таңдаңыз",
+    chooseWeek: "Аптаны таңдаңыз",
     today: "Бүгін",
     loading: "Журнал жүктелуде…",
     noGroups: "Қолжетімді топтар әлі жоқ.",
     noLessons: "Таңдалған күндерде сабақтарыңыз жоқ. Басқа апта не кезең таңдаңыз.",
     noStudents: "Студенттер табылмады.",
     saved: "Баға сақталды.",
+    savedInline: "Сақталды",
+    savingInline: "Сақталуда…",
+    errorInline: "Қате",
     loadError: "Журнал жүктелмеді.",
     saveError: "Бағаны сақтау мүмкін болмады.",
     grade: "Баға",
@@ -66,12 +74,16 @@ const labels = {
     student: "Student",
     allStudents: "All students",
     chooseGroup: "Choose a group",
+    chooseWeek: "Choose a week",
     today: "Today",
     loading: "Loading gradebook…",
     noGroups: "You have no available groups yet.",
     noLessons: "You have no classes on these dates. Choose another week or date range.",
     noStudents: "No students found.",
     saved: "Grade saved.",
+    savedInline: "Saved",
+    savingInline: "Saving…",
+    errorInline: "Error",
     loadError: "Could not load the gradebook.",
     saveError: "Could not save the grade.",
     grade: "Grade",
@@ -121,11 +133,32 @@ function cellId(studentId: string, lessonKey: string, date: string) {
   return `${studentId}:${lessonKey}:${date}`;
 }
 
+function formatDate(date: string, locale: string) {
+  if (!date) return "—";
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function LessonGradebook({ locale }: { locale: string }) {
   const appLocale = normalizeLocale(locale);
   const copy = labels[appLocale];
   const dateLocale = appLocale === "kk" ? "kk-KZ" : appLocale === "en" ? "en-GB" : "ru-RU";
   const initial = useMemo(() => weekBounds(today()), []);
+  const weekOptions = useMemo(() => {
+    const monday = Date.parse(`${initial.from}T00:00:00Z`);
+    return Array.from({ length: 105 }, (_, index) => {
+      const bounds = weekBounds(
+        new Date(monday + (index - 52) * 604800000).toISOString().slice(0, 10),
+      );
+      return {
+        value: isoWeek(bounds.from),
+        label: `${formatDate(bounds.from, dateLocale)} — ${formatDate(bounds.to, dateLocale)}`,
+      };
+    });
+  }, [initial.from, dateLocale]);
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
   const [week, setWeek] = useState(isoWeek(initial.from));
@@ -135,6 +168,8 @@ export function LessonGradebook({ locale }: { locale: string }) {
   const [grades, setGrades] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
+  const [savedCell, setSavedCell] = useState("");
+  const [failedCell, setFailedCell] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -187,6 +222,8 @@ export function LessonGradebook({ locale }: { locale: string }) {
     if (!book?.groupId) return;
     const id = cellId(studentId, lesson.key, lesson.date);
     setSaving(id);
+    setSavedCell("");
+    setFailedCell("");
     setError("");
     setNotice("");
     try {
@@ -210,20 +247,17 @@ export function LessonGradebook({ locale }: { locale: string }) {
         return next;
       });
       setNotice(copy.saved);
+      setSavedCell(id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : copy.saveError);
+      setFailedCell(id);
     } finally {
       setSaving("");
     }
   }
 
   const students = book?.students.filter((student) => !studentId || student.id === studentId) ?? [];
-  const dateLabel = (date: string) =>
-    new Date(`${date}T00:00:00Z`).toLocaleDateString(dateLocale, {
-      day: "2-digit",
-      month: "short",
-      timeZone: "UTC",
-    });
+  const dateLabel = (date: string) => formatDate(date, dateLocale);
   const lessonCount = book?.lessons.length ?? 0;
   const lessonUnit =
     appLocale === "ru"
@@ -281,8 +315,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
           </label>
           <label>
             {copy.week}
-            <input
-              type="week"
+            <select
               value={week}
               onChange={(event) => {
                 const bounds = weekFromInput(event.target.value);
@@ -292,12 +325,20 @@ export function LessonGradebook({ locale }: { locale: string }) {
                   setTo(bounds.to);
                 }
               }}
-            />
+            >
+              <option value="">{copy.chooseWeek}</option>
+              {weekOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             {copy.from}
             <input
               type="date"
+              lang={appLocale}
               value={from}
               max={to}
               onChange={(event) => {
@@ -305,11 +346,13 @@ export function LessonGradebook({ locale }: { locale: string }) {
                 setWeek("");
               }}
             />
+            <small className="lesson-gradebook-date-caption">{dateLabel(from)}</small>
           </label>
           <label>
             {copy.to}
             <input
               type="date"
+              lang={appLocale}
               value={to}
               min={from}
               onChange={(event) => {
@@ -317,6 +360,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
                 setWeek("");
               }}
             />
+            <small className="lesson-gradebook-date-caption">{dateLabel(to)}</small>
           </label>
           <label>
             {copy.student}
@@ -404,6 +448,19 @@ export function LessonGradebook({ locale }: { locale: string }) {
                               <option value="4">4</option>
                               <option value="5">5</option>
                             </select>
+                            {saving === id ? (
+                              <small className="lesson-gradebook-cell-state" role="status">
+                                {copy.savingInline}
+                              </small>
+                            ) : savedCell === id ? (
+                              <small className="lesson-gradebook-cell-state" role="status">
+                                ✓ {copy.savedInline}
+                              </small>
+                            ) : failedCell === id ? (
+                              <small className="lesson-gradebook-cell-state is-error" role="alert">
+                                {copy.errorInline}
+                              </small>
+                            ) : null}
                           </td>
                         );
                       })}

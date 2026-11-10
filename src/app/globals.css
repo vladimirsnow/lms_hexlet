@@ -1972,6 +1972,11 @@ h2 {
   outline: 3px solid #a77ec5;
   outline-offset: 2px;
 }
+.lesson-gradebook-date-caption {
+  color: #73667c;
+  font-size: 11px;
+  font-weight: 400;
+}
 .lesson-gradebook-filters .button {
   min-height: 40px;
 }
@@ -2053,6 +2058,16 @@ h2 {
   font-size: 12px;
   font-weight: 700;
 }
+.lesson-gradebook-cell-state {
+  display: block;
+  margin-top: 5px;
+  color: #36734f;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.lesson-gradebook-cell-state.is-error {
+  color: #a32929;
+}
 .report-modal-backdrop {
   position: fixed;
   z-index: 100;
@@ -2080,6 +2095,12 @@ h2 {
 .report-modal-heading h2 {
   margin: 4px 0 16px;
 }
+.report-date-caption {
+  display: block;
+  margin-top: 5px;
+  color: #74667d;
+  font-size: 11px;
+}
 @media (max-width: 800px) {
   .teacher-home-hero {
     grid-template-columns: 1fr;
@@ -2095,6 +2116,18 @@ h2 {
   }
 }
 @media (max-width: 540px) {
+  .lesson-gradebook-table .lesson-gradebook-student {
+    min-width: 122px;
+    max-width: 122px;
+  }
+  .lesson-gradebook-table thead th:not(.lesson-gradebook-student),
+  .lesson-gradebook-table tbody td {
+    min-width: 180px;
+    width: 180px;
+  }
+  .lesson-gradebook-table thead th span {
+    max-width: none;
+  }
   .lesson-gradebook-scroll-hint {
     display: block;
   }
