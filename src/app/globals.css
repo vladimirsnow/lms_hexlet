@@ -1925,71 +1925,251 @@ h2 {
 
 .lesson-gradebook-page {
   max-width: none;
+  gap: 14px;
 }
 .lesson-gradebook-header {
-  align-items: end;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: 154px;
+  margin: 0;
+  padding: 26px 32px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(114deg, #3d2358 0%, #604080 65%, #80549e 100%);
+  box-shadow: 0 14px 30px rgba(60, 35, 84, 0.13);
+  color: #fff;
+  animation: lesson-gradebook-enter 0.4s ease-out both;
 }
-.lesson-gradebook-period {
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: #f0e9f5;
-  color: #5b3478;
-  font-size: 12px;
+.lesson-gradebook-header::after {
+  position: absolute;
+  right: -76px;
+  bottom: -158px;
+  width: 340px;
+  height: 340px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 42px rgba(255, 255, 255, 0.045),
+    0 0 0 88px rgba(255, 255, 255, 0.035);
+  content: "";
+  pointer-events: none;
+}
+.lesson-gradebook-header-copy,
+.lesson-gradebook-scale {
+  position: relative;
+  z-index: 1;
+}
+.lesson-gradebook-header .eyebrow {
+  margin-bottom: 7px;
+  color: #e5d5f1;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+.lesson-gradebook-header h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(29px, 3vw, 38px);
+  line-height: 1.12;
+}
+.app-page-header.lesson-gradebook-header .lesson-gradebook-header-copy > p:last-child {
+  max-width: 620px;
+  margin-top: 10px;
+  color: #eee5f5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.lesson-gradebook-scale {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+  padding-left: 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  text-align: right;
+}
+.lesson-gradebook-scale strong {
+  font-size: 38px;
   font-weight: 700;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.05em;
 }
-.lesson-gradebook-panel {
+.lesson-gradebook-scale span {
+  margin-top: 6px;
+  color: #e4d6ee;
+  font-size: 11px;
+  font-weight: 600;
+}
+.lesson-gradebook-workspace {
+  display: grid;
+  gap: 12px;
   min-width: 0;
 }
-.lesson-gradebook-filters {
+.lesson-gradebook-toolbar,
+.lesson-gradebook-panel,
+.lesson-gradebook-summary > div {
+  border: 1px solid #e8e1ec;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(61, 35, 88, 0.025);
+}
+.lesson-gradebook-toolbar {
+  padding: 20px 22px 18px;
+  border-radius: 15px;
+}
+.lesson-gradebook-toolbar-heading,
+.lesson-gradebook-table-heading {
   display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 12px;
-  margin: 20px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.lesson-gradebook-toolbar-heading .eyebrow,
+.lesson-gradebook-table-heading .eyebrow {
+  margin: 0 0 4px;
+  color: #7e5596;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+}
+.lesson-gradebook-toolbar-heading h2,
+.lesson-gradebook-table-heading h2 {
+  margin: 0;
+  color: #312639;
+  font-size: 21px;
+  line-height: 1.2;
+}
+.lesson-gradebook-period {
+  padding: 8px 11px;
+  border: 1px solid #e6d9ef;
+  border-radius: 8px;
+  background: #f7f2fa;
+  color: #653c82;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lesson-gradebook-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(130px, 1.05fr) minmax(165px, 1.25fr) minmax(124px, 0.9fr) minmax(124px, 0.9fr)
+    minmax(150px, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  margin-top: 16px;
 }
 .lesson-gradebook-filters label {
   display: grid;
-  gap: 6px;
-  color: #655d6c;
+  gap: 5px;
+  min-width: 0;
+  color: #625a69;
   font-size: 11px;
   font-weight: 700;
 }
 .lesson-gradebook-filters input,
 .lesson-gradebook-filters select {
-  min-height: 40px;
-  max-width: 240px;
-  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 10px;
   border: 1px solid #dcd2e3;
-  border-radius: 8px;
+  border-radius: 9px;
   background: #fff;
-  color: #332b3a;
-  font: inherit;
+  color: #30263a;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.lesson-gradebook-filters input:hover,
+.lesson-gradebook-filters select:hover {
+  border-color: #bfa5d0;
 }
 .lesson-gradebook-filters input:focus-visible,
 .lesson-gradebook-filters select:focus-visible,
-.lesson-gradebook-table select:focus-visible {
-  outline: 3px solid #a77ec5;
+.lesson-gradebook-score:focus-within {
+  outline: 3px solid rgba(144, 88, 177, 0.27);
   outline-offset: 2px;
 }
 .lesson-gradebook-date-caption {
-  color: #73667c;
-  font-size: 11px;
+  color: #83798b;
+  font-size: 10px;
   font-weight: 400;
 }
-.lesson-gradebook-filters .button {
-  min-height: 40px;
+.lesson-gradebook-current-week {
+  min-height: 42px;
+  margin-top: 19px;
+  white-space: nowrap;
+}
+.lesson-gradebook-more-filters {
+  display: none;
+}
+.lesson-gradebook-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.lesson-gradebook-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 64px;
+  padding: 10px 16px;
+  border-radius: 12px;
+}
+.lesson-gradebook-summary > div:first-child {
+  border-color: #dfcee9;
+  background: #f5eef9;
+}
+.lesson-gradebook-summary strong {
+  color: #55316f;
+  font-size: 25px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.lesson-gradebook-summary span {
+  color: #746a7c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.lesson-gradebook-panel {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 15px;
+}
+.lesson-gradebook-table-heading {
+  padding: 17px 22px;
+  border-bottom: 1px solid #ebe5ef;
+}
+.lesson-gradebook-table-heading p:last-child {
+  max-width: 330px;
+  margin: 0;
+  color: #766c7e;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+}
+.lesson-gradebook-panel .schedule-form-error,
+.lesson-gradebook-panel .schedule-form-success {
+  margin: 12px 22px;
+}
+.lesson-gradebook-panel > .course-material-empty {
+  margin: 0;
+  padding: 30px 22px;
 }
 .lesson-gradebook-scroll {
   width: 100%;
-  max-height: 65vh;
+  max-height: 62vh;
   overflow: auto;
-  border: 1px solid #eee8f1;
-  border-radius: 11px;
 }
 .lesson-gradebook-scroll-hint {
   display: none;
-  margin: 0 0 8px;
+  margin: 12px 22px;
   color: #74667d;
   font-size: 12px;
 }
@@ -2002,61 +2182,151 @@ h2 {
 }
 .lesson-gradebook-table th,
 .lesson-gradebook-table td {
-  min-width: 125px;
-  padding: 12px;
-  border-right: 1px solid #eee8f1;
-  border-bottom: 1px solid #eee8f1;
+  min-width: 178px;
+  padding: 13px 16px;
+  border-right: 1px solid #ede7f0;
+  border-bottom: 1px solid #ede7f0;
   background: #fff;
+  transition: background-color 0.18s ease;
 }
 .lesson-gradebook-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
+  min-width: 190px;
+  height: 112px;
   background: #f7f3fa;
-  vertical-align: bottom;
+  vertical-align: top;
 }
 .lesson-gradebook-table thead th strong {
   display: block;
-  color: #463250;
-  font-size: 12px;
+  color: #3b2949;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 .lesson-gradebook-table thead th span {
   display: block;
-  max-width: 150px;
-  margin-top: 5px;
-  color: #73667c;
+}
+.lesson-gradebook-weekday {
+  margin-bottom: 5px;
+  color: #8a6b9d;
   font-size: 10px;
-  font-weight: 400;
-  line-height: 1.4;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.lesson-gradebook-lesson-time {
+  width: fit-content;
+  margin-top: 8px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: #e9dff0;
+  color: #5d3c77;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lesson-gradebook-table thead .lesson-gradebook-lesson-title {
+  max-width: 200px;
+  margin-top: 5px;
+  color: #5a5062;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 .lesson-gradebook-table .lesson-gradebook-student {
   position: sticky;
   left: 0;
   z-index: 1;
-  min-width: 190px;
-  max-width: 230px;
-  color: #302738;
+  min-width: 195px;
+  max-width: 240px;
+  color: #342a3d;
   font-size: 12px;
   font-weight: 700;
 }
 .lesson-gradebook-table thead .lesson-gradebook-student {
   z-index: 3;
   background: #f7f3fa;
+  vertical-align: bottom;
+}
+.lesson-gradebook-student-index {
+  display: inline-block;
+  min-width: 27px;
+  margin-right: 7px;
+  color: #9a87a5;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.lesson-gradebook-student-name {
+  line-height: 1.4;
+}
+.lesson-gradebook-table tbody tr:nth-child(even) th,
+.lesson-gradebook-table tbody tr:nth-child(even) td {
+  background: #fdfbfe;
 }
 .lesson-gradebook-table tbody tr:hover th,
-.lesson-gradebook-table tbody tr:hover td {
-  background: #fcf9fe;
+.lesson-gradebook-table tbody tr:hover td,
+.lesson-gradebook-table tbody tr:focus-within th,
+.lesson-gradebook-table tbody tr:focus-within td {
+  background: #faf5fd;
 }
-.lesson-gradebook-table select {
-  width: 70px;
-  min-height: 34px;
-  padding: 5px 8px;
-  border: 1px solid #ded3e5;
-  border-radius: 7px;
+.lesson-gradebook-score {
+  display: inline-flex;
+  align-items: center;
+  width: 110px;
+  min-height: 42px;
+  padding: 0 9px;
+  border: 1px solid #dcd1e4;
+  border-radius: 9px;
   background: #fff;
-  color: #4e2f69;
-  font-size: 12px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+.lesson-gradebook-score:hover {
+  border-color: #a775c3;
+}
+.lesson-gradebook-score:focus-within {
+  border-color: #9155b2;
+  background: #fff;
+  transform: translateY(-1px);
+}
+.lesson-gradebook-score.is-filled {
+  border-color: #d8bee6;
+  background: #f3eaf8;
+}
+.lesson-gradebook-score.is-error {
+  border-color: #b94a54;
+  background: #fff4f4;
+}
+.lesson-gradebook-table .lesson-gradebook-score input[type="text"] {
+  width: 57px;
+  min-width: 0;
+  min-height: 0;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #55316f;
+  font-family: inherit;
+  font-size: 17px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.lesson-gradebook-score input::placeholder {
+  color: #b8a9c2;
+}
+.lesson-gradebook-score input:disabled {
+  opacity: 0.65;
+}
+.lesson-gradebook-score > span {
+  color: #9b8aa6;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .lesson-gradebook-cell-state {
   display: block;
@@ -2067,6 +2337,36 @@ h2 {
 }
 .lesson-gradebook-cell-state.is-error {
   color: #a32929;
+}
+@keyframes lesson-gradebook-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lesson-gradebook-header {
+    animation: none;
+  }
+  .lesson-gradebook-table th,
+  .lesson-gradebook-table td,
+  .lesson-gradebook-score,
+  .lesson-gradebook-filters input,
+  .lesson-gradebook-filters select {
+    transition: none;
+  }
+}
+@media (max-width: 1190px) {
+  .lesson-gradebook-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .lesson-gradebook-current-week {
+    width: 100%;
+  }
 }
 .report-modal-backdrop {
   position: fixed;
@@ -2114,16 +2414,123 @@ h2 {
   .lesson-gradebook-period {
     display: none;
   }
+  .lesson-gradebook-header {
+    padding: 24px;
+  }
+  .lesson-gradebook-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .lesson-gradebook-table-heading p:last-child {
+    max-width: 220px;
+  }
 }
 @media (max-width: 540px) {
+  .lesson-gradebook-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 15px;
+    min-height: 0;
+    padding: 22px;
+  }
+  .lesson-gradebook-header h1 {
+    font-size: 30px;
+  }
+  .lesson-gradebook-scale {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+  }
+  .lesson-gradebook-scale strong {
+    font-size: 26px;
+  }
+  .lesson-gradebook-scale span {
+    margin: 0;
+  }
+  .lesson-gradebook-toolbar {
+    padding: 18px;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(1),
+  .lesson-gradebook-filters > label:nth-of-type(2) {
+    grid-column: 1 / -1;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(1) {
+    order: 1;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(2) {
+    order: 2;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(3),
+  .lesson-gradebook-filters > label:nth-of-type(4),
+  .lesson-gradebook-filters > label:nth-of-type(5) {
+    display: none;
+  }
+  .lesson-gradebook-filters.is-expanded > label:nth-of-type(3),
+  .lesson-gradebook-filters.is-expanded > label:nth-of-type(4),
+  .lesson-gradebook-filters.is-expanded > label:nth-of-type(5) {
+    display: grid;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(3) {
+    order: 5;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(4) {
+    order: 6;
+  }
+  .lesson-gradebook-filters > label:nth-of-type(5) {
+    order: 7;
+    grid-column: 1 / -1;
+  }
+  .lesson-gradebook-more-filters {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    order: 3;
+    font-size: 11px;
+  }
+  .lesson-gradebook-current-week {
+    order: 4;
+    margin-top: 0;
+    font-size: 11px;
+  }
+  .lesson-gradebook-summary {
+    gap: 6px;
+  }
+  .lesson-gradebook-summary > div {
+    display: grid;
+    align-content: center;
+    gap: 5px;
+    min-height: 68px;
+    padding: 10px;
+  }
+  .lesson-gradebook-summary strong {
+    font-size: 22px;
+  }
+  .lesson-gradebook-summary span {
+    font-size: 10px;
+  }
+  .lesson-gradebook-table-heading {
+    display: block;
+    padding: 17px 18px;
+  }
+  .lesson-gradebook-table-heading p:last-child {
+    max-width: none;
+    margin-top: 6px;
+    text-align: left;
+  }
   .lesson-gradebook-table .lesson-gradebook-student {
-    min-width: 122px;
-    max-width: 122px;
+    min-width: 136px;
+    max-width: 136px;
   }
   .lesson-gradebook-table thead th:not(.lesson-gradebook-student),
   .lesson-gradebook-table tbody td {
-    min-width: 180px;
-    width: 180px;
+    min-width: 188px;
+    width: 188px;
+  }
+  .lesson-gradebook-student-index {
+    display: block;
+    margin-bottom: 5px;
   }
   .lesson-gradebook-table thead th span {
     max-width: none;
@@ -2139,13 +2546,6 @@ h2 {
   }
   .report-modal {
     padding: 18px;
-  }
-  .lesson-gradebook-filters label {
-    flex: 1 1 130px;
-  }
-  .lesson-gradebook-filters input,
-  .lesson-gradebook-filters select {
-    width: 100%;
   }
 }
 @media (prefers-reduced-motion: reduce) {

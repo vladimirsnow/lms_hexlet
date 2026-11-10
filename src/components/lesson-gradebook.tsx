@@ -6,11 +6,17 @@ import { normalizeLocale } from "@/lib/i18n";
 
 const labels = {
   ru: {
-    eyebrow: "УЧЕБНЫЙ ПРОЦЕСС / ПРЕПОДАВАТЕЛЬ",
     title: "Оценки за пары",
-    description: "Поставьте оценку от 2 до 5 в ячейке занятия. Изменения сохраняются сразу.",
-    journal: "ЖУРНАЛ",
-    groupLessons: "Группа и занятия",
+    description: "Баллы за каждую пару по шкале от 0 до 100.",
+    journal: "ЭЛЕКТРОННЫЙ ЖУРНАЛ",
+    groupLessons: "Занятия группы",
+    filters: "Параметры журнала",
+    moreFilters: "Ещё фильтры",
+    hideFilters: "Скрыть",
+    scale: "100-балльная система",
+    lessonMetric: "Пар в периоде",
+    studentMetric: "Студентов",
+    filledMetric: "Оценок выставлено",
     group: "Группа",
     week: "Неделя",
     from: "С",
@@ -19,7 +25,7 @@ const labels = {
     allStudents: "Все студенты",
     chooseGroup: "Выберите группу",
     chooseWeek: "Выберите неделю",
-    today: "Сегодня",
+    today: "Эта неделя",
     loading: "Загружаем журнал…",
     noGroups: "У вас пока нет доступных групп.",
     noLessons:
@@ -32,15 +38,23 @@ const labels = {
     errorInline: "Ошибка",
     loadError: "Не удалось загрузить журнал.",
     saveError: "Не удалось сохранить оценку.",
-    grade: "Оценка",
+    rangeError: "Введите целое число от 0 до 100.",
+    grade: "Балл",
+    gradeHint: "Введите 0–100. Балл сохранится при переходе из ячейки.",
     scroll: "Прокрутите таблицу вправо, чтобы увидеть остальные пары.",
   },
   kk: {
-    eyebrow: "ОҚУ ҮДЕРІСІ / ОҚЫТУШЫ",
     title: "Сабақ бағалары",
-    description: "Сабақ ұяшығында 2-ден 5-ке дейін баға қойыңыз. Өзгерістер бірден сақталады.",
-    journal: "ЖУРНАЛ",
-    groupLessons: "Топ пен сабақтар",
+    description: "Әр сабаққа 0-ден 100-ге дейін балл қойыңыз.",
+    journal: "ЭЛЕКТРОНДЫ ЖУРНАЛ",
+    groupLessons: "Топ сабақтары",
+    filters: "Журнал параметрлері",
+    moreFilters: "Басқа сүзгілер",
+    hideFilters: "Жасыру",
+    scale: "100 балдық жүйе",
+    lessonMetric: "Кезеңдегі сабақтар",
+    studentMetric: "Студенттер",
+    filledMetric: "Қойылған бағалар",
     group: "Топ",
     week: "Апта",
     from: "Бастап",
@@ -49,7 +63,7 @@ const labels = {
     allStudents: "Барлық студенттер",
     chooseGroup: "Топты таңдаңыз",
     chooseWeek: "Аптаны таңдаңыз",
-    today: "Бүгін",
+    today: "Осы апта",
     loading: "Журнал жүктелуде…",
     noGroups: "Қолжетімді топтар әлі жоқ.",
     noLessons: "Таңдалған күндерде топ кестесінде сабақ жоқ. Басқа апта не кезең таңдаңыз.",
@@ -61,15 +75,23 @@ const labels = {
     errorInline: "Қате",
     loadError: "Журнал жүктелмеді.",
     saveError: "Бағаны сақтау мүмкін болмады.",
-    grade: "Баға",
+    rangeError: "0-ден 100-ге дейінгі бүтін санды енгізіңіз.",
+    grade: "Балл",
+    gradeHint: "0–100 енгізіңіз. Ұяшықтан шыққанда балл сақталады.",
     scroll: "Басқа сабақтарды көру үшін кестені оңға жылжытыңыз.",
   },
   en: {
-    eyebrow: "ACADEMIC WORK / TEACHER",
     title: "Class grades",
-    description: "Set a grade from 2 to 5 in each class cell. Changes save immediately.",
-    journal: "GRADEBOOK",
-    groupLessons: "Group and classes",
+    description: "Score every class on a scale from 0 to 100.",
+    journal: "CLASS GRADEBOOK",
+    groupLessons: "Group classes",
+    filters: "Gradebook filters",
+    moreFilters: "More filters",
+    hideFilters: "Hide filters",
+    scale: "100-point scale",
+    lessonMetric: "Classes in range",
+    studentMetric: "Students",
+    filledMetric: "Scores entered",
     group: "Group",
     week: "Week",
     from: "From",
@@ -78,7 +100,7 @@ const labels = {
     allStudents: "All students",
     chooseGroup: "Choose a group",
     chooseWeek: "Choose a week",
-    today: "Today",
+    today: "This week",
     loading: "Loading gradebook…",
     noGroups: "You have no available groups yet.",
     noLessons: "The group has no classes on these dates. Choose another week or date range.",
@@ -90,7 +112,9 @@ const labels = {
     errorInline: "Error",
     loadError: "Could not load the gradebook.",
     saveError: "Could not save the grade.",
-    grade: "Grade",
+    rangeError: "Enter a whole number from 0 to 100.",
+    grade: "Score",
+    gradeHint: "Enter 0–100. The score saves when you leave the cell.",
     scroll: "Scroll the table right to see more classes.",
   },
 } as const;
@@ -147,6 +171,13 @@ function formatDate(date: string, locale: string) {
   });
 }
 
+function formatWeekday(date: string, locale: string) {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString(locale, {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function LessonGradebook({ locale }: { locale: string }) {
   const appLocale = normalizeLocale(locale);
   const copy = labels[appLocale];
@@ -171,12 +202,12 @@ export function LessonGradebook({ locale }: { locale: string }) {
   const [studentId, setStudentId] = useState("");
   const [book, setBook] = useState<Book | null>(null);
   const [grades, setGrades] = useState<Record<string, number>>({});
+  const [draftGrades, setDraftGrades] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState("");
-  const [savedCell, setSavedCell] = useState("");
-  const [failedCell, setFailedCell] = useState("");
+  const [cellStates, setCellStates] = useState<Record<string, "saving" | "saved" | "error">>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const autoSelectPeriod = useRef(true);
 
   const load = useCallback(
@@ -210,14 +241,17 @@ export function LessonGradebook({ locale }: { locale: string }) {
         autoSelectPeriod.current = false;
         setBook(data);
         setGroupId(data.groupId || "");
-        setGrades(
-          Object.fromEntries(
-            data.grades.map((grade: Book["grades"][number]) => [
-              cellId(grade.studentId, grade.lessonKey, grade.date),
-              grade.value,
-            ]),
-          ),
+        const nextGrades = Object.fromEntries(
+          data.grades.map((grade: Book["grades"][number]) => [
+            cellId(grade.studentId, grade.lessonKey, grade.date),
+            grade.value,
+          ]),
         );
+        setGrades(nextGrades);
+        setDraftGrades(
+          Object.fromEntries(Object.entries(nextGrades).map(([id, value]) => [id, String(value)])),
+        );
+        setCellStates({});
       } catch (cause) {
         if (signal.aborted) return;
         setError(cause instanceof Error ? cause.message : copy.loadError);
@@ -242,9 +276,25 @@ export function LessonGradebook({ locale }: { locale: string }) {
   async function save(studentId: string, lesson: Book["lessons"][number], value: string) {
     if (!book?.groupId) return;
     const id = cellId(studentId, lesson.key, lesson.date);
-    setSaving(id);
-    setSavedCell("");
-    setFailedCell("");
+    if (cellStates[id] === "saving") return;
+    const trimmed = value.trim();
+    if (trimmed && !/^(?:0|[1-9]\d?|100)$/.test(trimmed)) {
+      setError(copy.rangeError);
+      setNotice("");
+      setCellStates((current) => ({ ...current, [id]: "error" }));
+      return;
+    }
+    const nextValue = trimmed ? Number(trimmed) : null;
+    if ((grades[id] ?? null) === nextValue) {
+      setDraftGrades((current) => ({ ...current, [id]: trimmed }));
+      setCellStates((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+      return;
+    }
+    setCellStates((current) => ({ ...current, [id]: "saving" }));
     setError("");
     setNotice("");
     try {
@@ -256,7 +306,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
           studentId,
           lessonKey: lesson.key,
           date: lesson.date,
-          value: value ? Number(value) : null,
+          value: nextValue,
         }),
       });
       const result = await response.json();
@@ -267,241 +317,318 @@ export function LessonGradebook({ locale }: { locale: string }) {
         else next[id] = result.value;
         return next;
       });
+      setDraftGrades((current) => ({
+        ...current,
+        [id]: result.value === null ? "" : String(result.value),
+      }));
       setNotice(copy.saved);
-      setSavedCell(id);
+      setCellStates((current) => ({ ...current, [id]: "saved" }));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : copy.saveError);
-      setFailedCell(id);
-    } finally {
-      setSaving("");
+      setCellStates((current) => ({ ...current, [id]: "error" }));
     }
   }
 
   const students = book?.students.filter((student) => !studentId || student.id === studentId) ?? [];
   const dateLabel = (date: string) => formatDate(date, dateLocale);
   const lessonCount = book?.lessons.length ?? 0;
-  const lessonUnit =
-    appLocale === "ru"
-      ? ({ one: "пара", few: "пары", many: "пар", other: "пары" } as const)[
-          new Intl.PluralRules("ru-RU").select(lessonCount) as "one" | "few" | "many" | "other"
-        ]
-      : appLocale === "kk"
-        ? "сабақ"
-        : lessonCount === 1
-          ? "class"
-          : "classes";
-
+  const filledCount = students.reduce(
+    (total, student) =>
+      total +
+      (book?.lessons.reduce(
+        (count, lesson) =>
+          count + (grades[cellId(student.id, lesson.key, lesson.date)] !== undefined ? 1 : 0),
+        0,
+      ) ?? 0),
+    0,
+  );
   return (
     <div className="app-page-wrap lesson-gradebook-page">
       <header className="app-page-header lesson-gradebook-header">
-        <div>
-          <p className="eyebrow">{copy.eyebrow}</p>
+        <div className="lesson-gradebook-header-copy">
+          <p className="eyebrow">{copy.journal}</p>
           <h1>{copy.title}</h1>
           <p>{copy.description}</p>
         </div>
-        <span className="lesson-gradebook-period">
-          {dateLabel(from)} — {dateLabel(to)}
-        </span>
+        <div className="lesson-gradebook-scale" aria-label={copy.scale}>
+          <strong>0–100</strong>
+          <span>{copy.scale}</span>
+        </div>
       </header>
-      <section className="admin-panel lesson-gradebook-panel" aria-label={copy.title}>
-        <div className="admin-panel-heading">
-          <div>
-            <p className="eyebrow">{copy.journal}</p>
-            <h2>{copy.groupLessons}</h2>
-          </div>
-          <span className="users-total">
-            {lessonCount} {lessonUnit}
-          </span>
-        </div>
-        <div className="lesson-gradebook-filters">
-          <label>
-            {copy.group}
-            <select
-              value={groupId}
-              onChange={(event) => {
-                autoSelectPeriod.current = true;
-                setGroupId(event.target.value);
-                setStudentId("");
-              }}
-              disabled={!book?.groups.length}
-            >
-              <option value="" disabled>
-                {copy.chooseGroup}
-              </option>
-              {book?.groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {copy.week}
-            <select
-              value={week}
-              onChange={(event) => {
-                autoSelectPeriod.current = false;
-                const bounds = weekFromInput(event.target.value);
-                setWeek(event.target.value);
-                if (bounds) {
-                  setFrom(bounds.from);
-                  setTo(bounds.to);
-                }
-              }}
-            >
-              <option value="">{copy.chooseWeek}</option>
-              {week && !weekOptions.some((option) => option.value === week) ? (
-                <option value={week}>
-                  {dateLabel(from)} — {dateLabel(to)}
-                </option>
-              ) : null}
-              {weekOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {copy.from}
-            <input
-              type="date"
-              lang={appLocale}
-              value={from}
-              max={to}
-              onChange={(event) => {
-                autoSelectPeriod.current = false;
-                setFrom(event.target.value);
-                setWeek("");
-              }}
-            />
-            <small className="lesson-gradebook-date-caption">{dateLabel(from)}</small>
-          </label>
-          <label>
-            {copy.to}
-            <input
-              type="date"
-              lang={appLocale}
-              value={to}
-              min={from}
-              onChange={(event) => {
-                autoSelectPeriod.current = false;
-                setTo(event.target.value);
-                setWeek("");
-              }}
-            />
-            <small className="lesson-gradebook-date-caption">{dateLabel(to)}</small>
-          </label>
-          <label>
-            {copy.student}
-            <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
-              <option value="">{copy.allStudents}</option>
-              {book?.students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="button button-muted"
-            type="button"
-            onClick={() => {
-              const bounds = weekBounds(today());
-              setFrom(bounds.from);
-              setTo(bounds.to);
-              setWeek(isoWeek(bounds.from));
-            }}
-          >
-            {copy.today}
-          </button>
-        </div>
-        {error ? (
-          <p className="schedule-form-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-        {notice ? (
-          <p className="schedule-form-success" role="status">
-            {notice}
-          </p>
-        ) : null}
-        {loading ? (
-          <p className="course-material-empty" role="status">
-            {copy.loading}
-          </p>
-        ) : !book?.groups.length ? (
-          <p className="course-material-empty">{copy.noGroups}</p>
-        ) : !book.lessons.length ? (
-          <p className="course-material-empty">{copy.noLessons}</p>
-        ) : (
-          <>
-            <p className="lesson-gradebook-scroll-hint">{copy.scroll}</p>
-            <div className="lesson-gradebook-scroll">
-              <table className="lesson-gradebook-table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="lesson-gradebook-student">
-                      {copy.student}
-                    </th>
-                    {book.lessons.map((lesson) => (
-                      <th scope="col" key={`${lesson.key}:${lesson.date}`}>
-                        <strong>{dateLabel(lesson.date)}</strong>
-                        <span>
-                          {lesson.time} · {lesson.title}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((student) => (
-                    <tr key={student.id}>
-                      <th scope="row" className="lesson-gradebook-student">
-                        {student.name}
-                      </th>
-                      {book.lessons.map((lesson) => {
-                        const id = cellId(student.id, lesson.key, lesson.date);
-                        return (
-                          <td key={id}>
-                            <select
-                              aria-label={`${copy.grade}: ${student.name}, ${lesson.title}, ${dateLabel(lesson.date)} ${lesson.time}`}
-                              value={grades[id] ?? ""}
-                              disabled={saving === id}
-                              onChange={(event) =>
-                                void save(student.id, lesson, event.target.value)
-                              }
-                            >
-                              <option value="">—</option>
-                              <option value="2">2</option>
-                              <option value="3">3</option>
-                              <option value="4">4</option>
-                              <option value="5">5</option>
-                            </select>
-                            {saving === id ? (
-                              <small className="lesson-gradebook-cell-state" role="status">
-                                {copy.savingInline}
-                              </small>
-                            ) : savedCell === id ? (
-                              <small className="lesson-gradebook-cell-state" role="status">
-                                ✓ {copy.savedInline}
-                              </small>
-                            ) : failedCell === id ? (
-                              <small className="lesson-gradebook-cell-state is-error" role="alert">
-                                {copy.errorInline}
-                              </small>
-                            ) : null}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!students.length ? <p className="course-material-empty">{copy.noStudents}</p> : null}
+      <section className="lesson-gradebook-workspace" aria-label={copy.title}>
+        <div className="lesson-gradebook-toolbar">
+          <div className="lesson-gradebook-toolbar-heading">
+            <div>
+              <p className="eyebrow">{copy.filters}</p>
+              <h2>{copy.groupLessons}</h2>
             </div>
-          </>
-        )}
+            <span className="lesson-gradebook-period">
+              {dateLabel(from)} — {dateLabel(to)}
+            </span>
+          </div>
+          <div className={`lesson-gradebook-filters${showMoreFilters ? " is-expanded" : ""}`}>
+            <label>
+              {copy.group}
+              <select
+                value={groupId}
+                onChange={(event) => {
+                  autoSelectPeriod.current = true;
+                  setGroupId(event.target.value);
+                  setStudentId("");
+                }}
+                disabled={!book?.groups.length}
+              >
+                <option value="" disabled>
+                  {copy.chooseGroup}
+                </option>
+                {book?.groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {copy.week}
+              <select
+                value={week}
+                onChange={(event) => {
+                  autoSelectPeriod.current = false;
+                  const bounds = weekFromInput(event.target.value);
+                  setWeek(event.target.value);
+                  if (bounds) {
+                    setFrom(bounds.from);
+                    setTo(bounds.to);
+                  }
+                }}
+              >
+                <option value="">{copy.chooseWeek}</option>
+                {week && !weekOptions.some((option) => option.value === week) ? (
+                  <option value={week}>
+                    {dateLabel(from)} — {dateLabel(to)}
+                  </option>
+                ) : null}
+                {weekOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="button button-muted lesson-gradebook-more-filters"
+              type="button"
+              aria-expanded={showMoreFilters}
+              onClick={() => setShowMoreFilters((current) => !current)}
+            >
+              {showMoreFilters ? copy.hideFilters : copy.moreFilters}
+            </button>
+            <label>
+              {copy.from}
+              <input
+                type="date"
+                lang={appLocale}
+                value={from}
+                max={to}
+                onChange={(event) => {
+                  autoSelectPeriod.current = false;
+                  setFrom(event.target.value);
+                  setWeek("");
+                }}
+              />
+              <small className="lesson-gradebook-date-caption">{dateLabel(from)}</small>
+            </label>
+            <label>
+              {copy.to}
+              <input
+                type="date"
+                lang={appLocale}
+                value={to}
+                min={from}
+                onChange={(event) => {
+                  autoSelectPeriod.current = false;
+                  setTo(event.target.value);
+                  setWeek("");
+                }}
+              />
+              <small className="lesson-gradebook-date-caption">{dateLabel(to)}</small>
+            </label>
+            <label>
+              {copy.student}
+              <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
+                <option value="">{copy.allStudents}</option>
+                {book?.students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="button button-muted lesson-gradebook-current-week"
+              type="button"
+              onClick={() => {
+                autoSelectPeriod.current = false;
+                const bounds = weekBounds(today());
+                setFrom(bounds.from);
+                setTo(bounds.to);
+                setWeek(isoWeek(bounds.from));
+              }}
+            >
+              {copy.today}
+            </button>
+          </div>
+        </div>
+        <div className="lesson-gradebook-summary" aria-live="polite">
+          <div>
+            <strong>{lessonCount}</strong>
+            <span>{copy.lessonMetric}</span>
+          </div>
+          <div>
+            <strong>{students.length}</strong>
+            <span>{copy.studentMetric}</span>
+          </div>
+          <div>
+            <strong>{filledCount}</strong>
+            <span>{copy.filledMetric}</span>
+          </div>
+        </div>
+        <div className="lesson-gradebook-panel">
+          <div className="lesson-gradebook-table-heading">
+            <div>
+              <p className="eyebrow">{copy.journal}</p>
+              <h2>
+                {book?.groups.find((group) => group.id === groupId)?.name ?? copy.groupLessons}
+              </h2>
+            </div>
+            <p id="lesson-gradebook-grade-hint">{copy.gradeHint}</p>
+          </div>
+          {error ? (
+            <p className="schedule-form-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {notice ? (
+            <p className="schedule-form-success" role="status">
+              {notice}
+            </p>
+          ) : null}
+          {loading ? (
+            <p className="course-material-empty" role="status">
+              {copy.loading}
+            </p>
+          ) : !book?.groups.length ? (
+            <p className="course-material-empty">{copy.noGroups}</p>
+          ) : !book.lessons.length ? (
+            <p className="course-material-empty">{copy.noLessons}</p>
+          ) : (
+            <>
+              <p className="lesson-gradebook-scroll-hint">{copy.scroll}</p>
+              <div className="lesson-gradebook-scroll">
+                <table className="lesson-gradebook-table">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="lesson-gradebook-student">
+                        {copy.student}
+                      </th>
+                      {book.lessons.map((lesson) => (
+                        <th scope="col" key={`${lesson.key}:${lesson.date}`}>
+                          <span className="lesson-gradebook-weekday">
+                            {formatWeekday(lesson.date, dateLocale)}
+                          </span>
+                          <strong>{dateLabel(lesson.date)}</strong>
+                          <span className="lesson-gradebook-lesson-time">{lesson.time}</span>
+                          <span className="lesson-gradebook-lesson-title">{lesson.title}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map((student, index) => (
+                      <tr key={student.id}>
+                        <th scope="row" className="lesson-gradebook-student">
+                          <span className="lesson-gradebook-student-index">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="lesson-gradebook-student-name">{student.name}</span>
+                        </th>
+                        {book.lessons.map((lesson) => {
+                          const id = cellId(student.id, lesson.key, lesson.date);
+                          return (
+                            <td key={id}>
+                              <div
+                                className={`lesson-gradebook-score${grades[id] !== undefined ? " is-filled" : ""}${cellStates[id] === "error" ? " is-error" : ""}`}
+                              >
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={3}
+                                  aria-label={`${copy.grade}: ${student.name}, ${lesson.title}, ${dateLabel(lesson.date)} ${lesson.time}`}
+                                  aria-describedby="lesson-gradebook-grade-hint"
+                                  aria-invalid={cellStates[id] === "error"}
+                                  placeholder="—"
+                                  value={draftGrades[id] ?? ""}
+                                  disabled={cellStates[id] === "saving"}
+                                  onChange={(event) => {
+                                    setDraftGrades((current) => ({
+                                      ...current,
+                                      [id]: event.target.value,
+                                    }));
+                                    if (cellStates[id]) {
+                                      setCellStates((current) => {
+                                        const next = { ...current };
+                                        delete next[id];
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  onBlur={(event) =>
+                                    void save(student.id, lesson, event.currentTarget.value)
+                                  }
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") event.currentTarget.blur();
+                                    if (event.key === "Escape") {
+                                      const previous =
+                                        grades[id] === undefined ? "" : String(grades[id]);
+                                      event.currentTarget.value = previous;
+                                      setDraftGrades((current) => ({ ...current, [id]: previous }));
+                                      event.currentTarget.blur();
+                                    }
+                                  }}
+                                />
+                                <span aria-hidden="true">/ 100</span>
+                              </div>
+                              {cellStates[id] === "saving" ? (
+                                <small className="lesson-gradebook-cell-state" role="status">
+                                  {copy.savingInline}
+                                </small>
+                              ) : cellStates[id] === "saved" ? (
+                                <small className="lesson-gradebook-cell-state" role="status">
+                                  ✓ {copy.savedInline}
+                                </small>
+                              ) : cellStates[id] === "error" ? (
+                                <small
+                                  className="lesson-gradebook-cell-state is-error"
+                                  role="alert"
+                                >
+                                  {copy.errorInline}
+                                </small>
+                              ) : null}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!students.length ? (
+                  <p className="course-material-empty">{copy.noStudents}</p>
+                ) : null}
+              </div>
+            </>
+          )}
+        </div>
       </section>
     </div>
   );

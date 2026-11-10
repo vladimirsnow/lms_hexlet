@@ -15,7 +15,7 @@ const updateSchema = z.object({
   studentId: z.uuid(),
   lessonKey: z.string().max(100),
   date: z.iso.date(),
-  value: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.null()]),
+  value: z.number().int().min(0).max(100).nullable(),
 });
 
 function requireTeacher(actor: Actor) {
@@ -219,7 +219,7 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
 export async function setLessonGrade(actor: Actor, input: unknown) {
   requireTeacher(actor);
   const parsed = updateSchema.safeParse(input);
-  if (!parsed.success) throw new ApiError(422, "INVALID_GRADE", "Выберите оценку от 2 до 5.");
+  if (!parsed.success) throw new ApiError(422, "INVALID_GRADE", "Укажите целый балл от 0 до 100.");
   const { groupId, studentId, lessonKey, date, value } = parsed.data;
   const book = await getLessonGradebook(actor, { groupId, from: date, to: date });
   if (
