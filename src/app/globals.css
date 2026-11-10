@@ -6386,6 +6386,9 @@ summary {
 }
 .schedule-planner-source { padding: 14px; border-radius: 8px; background: #f8f5fb; display: grid; gap: 10px; }
 .schedule-planner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.schedule-planner-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.schedule-planner-filter-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.schedule-planner-filter-count { color: #625b67; font-size: 12px; }
 .schedule-planner-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .schedule-planner-row .button { flex: 0 0 auto; }
 .schedule-planner .table-scroll { width: 100%; overflow-x: auto; }
@@ -6397,3 +6400,4 @@ summary {
 .schedule-planner details { border-top: 1px solid #e6e0e8; padding-top: 12px; }
 .schedule-planner small { color: #625b67; font-weight: 400; }
 @media (max-width: 760px) { .schedule-planner-grid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .schedule-planner-filters { grid-template-columns: 1fr; } }

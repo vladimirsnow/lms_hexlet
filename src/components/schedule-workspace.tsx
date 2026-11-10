@@ -869,6 +869,8 @@ function ImportedSchedulePanel({
   );
   const [date, setDate] = useState(toLocalIsoDate);
   const [group, setGroup] = useState("");
+  const [course, setCourse] = useState("");
+  const [teacher, setTeacher] = useState("");
   const [attendanceGroupId, setAttendanceGroupId] = useState<string | null>(null);
   const [tableZoom, setTableZoom] = useState(1);
   const [tableExpanded, setTableExpanded] = useState(false);
@@ -901,13 +903,34 @@ function ImportedSchedulePanel({
         .map((entry) => entry.groupName),
     ),
   ].sort((a, b) => a.localeCompare(b, "ru"));
-  const rows = (initial?.entries ?? [])
+  const courses = [
+    ...new Set(
+      (initial?.entries ?? [])
+        .filter((entry) => entry.week === visibleWeek)
+        .map((entry) => entry.subject),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "ru"));
+  const teachers = [
+    ...new Set(
+      (initial?.entries ?? [])
+        .filter((entry) => entry.week === visibleWeek)
+        .map((entry) => entry.teacher)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ].sort((a, b) => a.localeCompare(b, "ru"));
+  const attendanceRows = (initial?.entries ?? [])
     .map((entry, entryIndex) => ({ entry, entryIndex }))
     .filter(
       ({ entry }) =>
         entry.week === visibleWeek &&
         entry.date === selectedDate &&
         (!group || entry.groupName === group),
+    );
+  const rows = attendanceRows
+    .filter(
+      ({ entry }) =>
+        (!course || entry.subject === course) &&
+        (!teacher || (teacher === "__unassigned__" ? !entry.teacher : entry.teacher === teacher)),
     )
     .sort(
       (a, b) =>
@@ -915,7 +938,7 @@ function ImportedSchedulePanel({
     );
   const attendanceGroups = [
     ...new Map(
-      rows
+      attendanceRows
         .filter(({ entry }) => entry.canMarkAttendance && entry.groupId)
         .map(({ entry }) => [
           entry.groupId as string,
@@ -1069,6 +1092,9 @@ function ImportedSchedulePanel({
                 onChange={(event) => {
                   setWeek(event.target.value);
                   setDate("");
+                  setGroup("");
+                  setCourse("");
+                  setTeacher("");
                 }}
               >
                 {weeks.map((item) => (
@@ -1105,6 +1131,33 @@ function ImportedSchedulePanel({
                 </select>
               </label>
             ) : null}
+            <label>
+              Курс
+              <select value={course} onChange={(event) => setCourse(event.target.value)}>
+                <option value="">Все курсы</option>
+                {courses.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Преподаватель
+              <select value={teacher} onChange={(event) => setTeacher(event.target.value)}>
+                <option value="">Все преподаватели</option>
+                {teachers.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+                {(initial.entries ?? []).some(
+                  (entry) => entry.week === visibleWeek && !entry.teacher,
+                ) ? (
+                  <option value="__unassigned__">Не указан</option>
+                ) : null}
+              </select>
+            </label>
           </div>
           {attendanceGroups.length ? (
             <section className="schedule-attendance-panel imported-attendance-panel">

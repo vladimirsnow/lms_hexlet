@@ -58,6 +58,7 @@ export async function getPlannerData(actor: Actor, termId?: string) {
         termId: true,
         academicYearId: true,
         specialtyId: true,
+        specialty: { select: { code: true } },
         teacherAssignments: {
           select: { teacher: { select: { id: true, name: true, status: true } } },
         },
@@ -159,13 +160,14 @@ export async function getPlannerData(actor: Actor, termId?: string) {
       endsOn: date(item.endsOn),
       academicYearId: item.academicYearId,
     })),
-    groups: groups.map((item) => ({ ...item, fromImport: importedGroupIds.has(item.id) })),
+    groups,
     courses: courses.map((item) => ({
       id: item.id,
       title: item.title,
       termId: item.termId,
       academicYearId: item.academicYearId,
       specialtyId: item.specialtyId,
+      specialtyCode: item.specialty.code,
       teachers: item.teacherAssignments
         .filter((assignment) => assignment.teacher.status === "ACTIVE")
         .map((assignment) => ({ id: assignment.teacher.id, name: assignment.teacher.name })),

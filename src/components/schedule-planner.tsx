@@ -27,13 +27,13 @@ type Data = {
     name: string;
     academicYearId: string;
     specialtyId: string;
-    fromImport: boolean;
   }[];
   courses: {
     id: string;
     title: string;
     termId: string;
     specialtyId: string;
+    specialtyCode: string;
     teachers: { id: string; name: string }[];
   }[];
   teachers: { id: string; name: string }[];
@@ -93,6 +93,9 @@ export function SchedulePlanner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [groupFilter, setGroupFilter] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -138,6 +141,28 @@ export function SchedulePlanner() {
       ...(data?.teachers ?? []).map((item) => item.name),
     ]),
   ];
+  const filterCourses = courses.filter(
+    (course) =>
+      !groupFilter ||
+      course.specialtyId === groups.find((group) => group.id === groupFilter)?.specialtyId,
+  );
+  const filterTeachers = [
+    ...new Set([
+      ...(config?.allocations ?? []).map((item) => item.teacherName.trim()).filter(Boolean),
+      ...(teacherFilter && teacherFilter !== "__unassigned__" ? [teacherFilter] : []),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, "ru"));
+  const visibleAllocations = (config?.allocations ?? [])
+    .map((item, index) => ({ item, index }))
+    .filter(
+      ({ item }) =>
+        (!groupFilter || item.groupId === groupFilter) &&
+        (!courseFilter || item.courseId === courseFilter) &&
+        (!teacherFilter ||
+          (teacherFilter === "__unassigned__"
+            ? !item.teacherName.trim()
+            : item.teacherName.trim() === teacherFilter)),
+    );
   if (!data || !config)
     return (
       <section className="content-panel">
@@ -156,6 +181,27 @@ export function SchedulePlanner() {
       allocations: config!.allocations.map((item, i) =>
         i === index ? { ...item, ...patch } : item,
       ),
+    });
+  }
+  function addAllocation() {
+    const selectedCourse = courses.find((course) => course.id === courseFilter);
+    const groupId =
+      groupFilter ||
+      (selectedCourse
+        ? groups.find((group) => group.specialtyId === selectedCourse.specialtyId)?.id
+        : groups[0]?.id) ||
+      "";
+    change({
+      allocations: [
+        ...config!.allocations,
+        {
+          groupId,
+          courseId: courseFilter,
+          teacherName: teacherFilter === "__unassigned__" ? "" : teacherFilter,
+          hours: 1,
+          rooms: config!.rooms,
+        },
+      ],
     });
   }
   async function action(kind: "sync" | "preview" | "save" | "publish") {
@@ -231,6 +277,9 @@ export function SchedulePlanner() {
           value={termId}
           onChange={(event) => {
             setTermId(event.target.value);
+            setGroupFilter("");
+            setCourseFilter("");
+            setTeacherFilter("");
             setError("");
             setMessage("");
           }}
@@ -429,10 +478,80 @@ export function SchedulePlanner() {
       </div>
       <h3>Нагрузка по группам</h3>
       <p>
-        В списке доступны все группы учебного года, включая группы из загруженного расписания. Часы
-        из импорта подставлены как начальные значения — проверьте и задайте план на весь семестр.
-        Для занятий без преподавателя в исходном файле заполните его имя перед проверкой.
+        В списке доступны все группы учебного года. Часы из импорта подставлены как начальные
+        значения — проверьте и задайте план на весь семестр. Для занятий без преподавателя в
+        исходном файле заполните его имя перед проверкой.
       </p>
+      <div className="schedule-planner-filters" role="group" aria-label="Фильтры нагрузки">
+        <label>
+          Группа
+          <select
+            value={groupFilter}
+            onChange={(event) => {
+              const nextGroupId = event.target.value;
+              setGroupFilter(nextGroupId);
+              const specialtyId = groups.find((group) => group.id === nextGroupId)?.specialtyId;
+              if (
+                courseFilter &&
+                specialtyId &&
+                courses.find((course) => course.id === courseFilter)?.specialtyId !== specialtyId
+              )
+                setCourseFilter("");
+            }}
+          >
+            <option value="">Все группы</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Курс
+          <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+            <option value="">Все курсы</option>
+            {filterCourses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title} · {course.specialtyCode}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Преподаватель
+          <select value={teacherFilter} onChange={(event) => setTeacherFilter(event.target.value)}>
+            <option value="">Все преподаватели</option>
+            {filterTeachers.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+            {config.allocations.some((item) => !item.teacherName.trim()) ||
+            teacherFilter === "__unassigned__" ? (
+              <option value="__unassigned__">Не указан</option>
+            ) : null}
+          </select>
+        </label>
+      </div>
+      <div className="schedule-planner-filter-summary">
+        <p className="schedule-planner-filter-count" role="status">
+          Показано {visibleAllocations.length} из {config.allocations.length} строк нагрузки.
+        </p>
+        {groupFilter || courseFilter || teacherFilter ? (
+          <button
+            type="button"
+            className="button button-muted"
+            onClick={() => {
+              setGroupFilter("");
+              setCourseFilter("");
+              setTeacherFilter("");
+            }}
+          >
+            Сбросить фильтры
+          </button>
+        ) : null}
+      </div>
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -446,7 +565,7 @@ export function SchedulePlanner() {
             </tr>
           </thead>
           <tbody>
-            {config.allocations.map((item, index) => {
+            {visibleAllocations.map(({ item, index }) => {
               const group = groups.find((candidate) => candidate.id === item.groupId);
               const availableCourses = courses.filter(
                 (candidate) => !group || candidate.specialtyId === group.specialtyId,
@@ -457,19 +576,21 @@ export function SchedulePlanner() {
                     <select
                       aria-label={`Группа ${index + 1}`}
                       value={item.groupId}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        if (groupFilter && event.target.value !== groupFilter) setGroupFilter("");
+                        if (courseFilter) setCourseFilter("");
+                        if (teacherFilter) setTeacherFilter("");
                         updateAllocation(index, {
                           groupId: event.target.value,
                           courseId: "",
                           teacherName: "",
-                        })
-                      }
+                        });
+                      }}
                     >
                       <option value="">Выберите</option>
                       {groups.map((candidate) => (
                         <option key={candidate.id} value={candidate.id}>
                           {candidate.name}
-                          {candidate.fromImport ? " · из расписания" : ""}
                         </option>
                       ))}
                     </select>
@@ -479,9 +600,13 @@ export function SchedulePlanner() {
                       aria-label={`Курс ${index + 1}`}
                       value={item.courseId}
                       onChange={(event) => {
+                        if (courseFilter && event.target.value !== courseFilter)
+                          setCourseFilter("");
                         const course = courses.find(
                           (candidate) => candidate.id === event.target.value,
                         );
+                        if (teacherFilter && course?.teachers[0]?.name !== teacherFilter)
+                          setTeacherFilter("");
                         updateAllocation(index, {
                           courseId: event.target.value,
                           teacherName: course?.teachers[0]?.name ?? "",
@@ -501,9 +626,11 @@ export function SchedulePlanner() {
                       aria-label={`Преподаватель ${index + 1}`}
                       list="schedule-planner-teachers"
                       value={item.teacherName}
-                      onChange={(event) =>
-                        updateAllocation(index, { teacherName: event.target.value })
-                      }
+                      onChange={(event) => {
+                        if (teacherFilter && event.target.value.trim() !== teacherFilter)
+                          setTeacherFilter("");
+                        updateAllocation(index, { teacherName: event.target.value });
+                      }}
                       placeholder="Фамилия И.О."
                     />
                   </td>
@@ -554,27 +681,15 @@ export function SchedulePlanner() {
                 </tr>
               );
             })}
+            {visibleAllocations.length === 0 ? (
+              <tr>
+                <td colSpan={6}>По выбранным фильтрам строк нет.</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        className="button button-muted"
-        onClick={() =>
-          change({
-            allocations: [
-              ...config.allocations,
-              {
-                groupId: groups[0]?.id ?? "",
-                courseId: "",
-                teacherName: "",
-                hours: 1,
-                rooms: config.rooms,
-              },
-            ],
-          })
-        }
-      >
+      <button type="button" className="button button-muted" onClick={addAllocation}>
         Добавить курс группе
       </button>
       {error ? (
