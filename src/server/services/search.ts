@@ -7,6 +7,7 @@ export interface SearchResult {
   kind: "course" | "assignment" | "lesson";
   title: string;
   description: string;
+  groups?: string[];
   href: string;
 }
 
@@ -52,6 +53,16 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
       { subject: { nameKk: { contains: term, mode: "insensitive" } } },
       { subject: { nameEn: { contains: term, mode: "insensitive" } } },
       { subject: { code: { contains: term, mode: "insensitive" } } },
+      {
+        enrollments: {
+          some: { status: "ACTIVE", group: { name: { contains: term, mode: "insensitive" } } },
+        },
+      },
+      {
+        scheduleEntries: {
+          some: { deletedAt: null, group: { name: { contains: term, mode: "insensitive" } } },
+        },
+      },
     ],
   };
   const results = await Promise.allSettled([
@@ -60,7 +71,31 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
         deletedAt: null,
         AND: [courseAccess, courseTextMatch],
       },
-      select: { id: true, title: true, slug: true, subject: { select: { nameRu: true } } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        subject: { select: { nameRu: true } },
+        enrollments: {
+          where: {
+            status: "ACTIVE",
+            groupId: { not: null },
+            ...(actor.role === "STUDENT" ? { studentId: actor.id } : {}),
+          },
+          select: { group: { select: { name: true } } },
+          distinct: ["groupId"],
+        },
+        scheduleEntries: {
+          where: {
+            deletedAt: null,
+            ...(actor.role === "STUDENT"
+              ? { group: { memberships: { some: { studentId: actor.id, leftAt: null } } } }
+              : {}),
+          },
+          select: { group: { select: { name: true } } },
+          distinct: ["groupId"],
+        },
+      },
       orderBy: { title: "asc" },
       take: 5,
     }),
@@ -133,6 +168,14 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
       kind: "course" as const,
       title: course.title,
       description: course.subject.nameRu,
+      groups: [
+        ...new Set([
+          ...(course.enrollments ?? []).flatMap((enrollment) =>
+            enrollment.group?.name ? [enrollment.group.name] : [],
+          ),
+          ...(course.scheduleEntries ?? []).map((entry) => entry.group.name),
+        ]),
+      ].sort((a, b) => a.localeCompare(b, "ru")),
       href: `/courses/${course.slug}`,
     })),
     ...assignments.map((assignment) => ({

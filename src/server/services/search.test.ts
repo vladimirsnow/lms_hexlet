@@ -24,6 +24,14 @@ describe("learning content search", () => {
     expect(where.AND[1].OR).toContainEqual({
       title: { contains: "математика", mode: "insensitive" },
     });
+    expect(where.AND[1].OR).toContainEqual({
+      enrollments: {
+        some: {
+          status: "ACTIVE",
+          group: { name: { contains: "математика", mode: "insensitive" } },
+        },
+      },
+    });
     expect(assignment.findMany.mock.calls[0][0].where.course.OR).toEqual(where.AND[0].OR);
     expect(lesson.findMany.mock.calls[0][0].where.section.course.OR).toEqual(where.AND[0].OR);
   });
@@ -31,16 +39,16 @@ describe("learning content search", () => {
   it("returns matching courses when material search fails", async () => {
     mocks.getPrisma.mockReturnValue({
       course: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            {
-              id: "course-id",
-              title: "Математика",
-              slug: "math",
-              subject: { nameRu: "Математика" },
-            },
-          ]),
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "course-id",
+            title: "Математика",
+            slug: "math",
+            subject: { nameRu: "Математика" },
+            enrollments: [{ group: { name: "ПМ1 РПО" } }],
+            scheduleEntries: [{ group: { name: "ПМ1 РПО" } }],
+          },
+        ]),
       },
       assignment: { findMany: vi.fn().mockResolvedValue([]) },
       lesson: { findMany: vi.fn().mockRejectedValue(new Error("material index unavailable")) },
@@ -53,6 +61,7 @@ describe("learning content search", () => {
         kind: "course",
         title: "Математика",
         description: "Математика",
+        groups: ["ПМ1 РПО"],
         href: "/courses/math",
       },
     ]);

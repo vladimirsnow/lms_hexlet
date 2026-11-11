@@ -78,9 +78,16 @@ describe("student lesson grade history", () => {
       },
       studyGroup: {
         findMany: vi.fn().mockResolvedValue([{ id: groupId, name: "Группа 1" }]),
-        findUnique: vi.fn().mockResolvedValue({ curatorId: null }),
+        findUnique: vi.fn().mockResolvedValue({ curatorId: null, name: "Группа 1" }),
       },
-      groupMember: { findMany: vi.fn().mockResolvedValue([]) },
+      groupMember: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { student: { id: "student-id", name: "Студент" } },
+            { student: { id: "student-2", name: "Другой" } },
+          ]),
+      },
       lessonGrade: {
         findMany: vi.fn().mockImplementation(({ where }) =>
           Promise.resolve(
@@ -107,22 +114,37 @@ describe("student lesson grade history", () => {
       groupId,
     });
     expect(history.courses).toEqual([{ key: courseId, title: "Математика" }]);
-    expect(history.grades).toEqual([
+    expect(history.summaries).toEqual([
       {
-        id: "grade-id",
+        studentId: "student-2",
+        studentName: "Другой",
+        groupName: "Группа 1",
+        courseKey: "",
+        courseTitle: "—",
+        average: null,
+        count: 0,
+      },
+      {
         studentId: "student-id",
         studentName: "Студент",
-        date: "2021-03-15",
-        value: 91,
+        groupName: "Группа 1",
         courseKey: courseId,
         courseTitle: "Математика",
+        average: 91,
+        count: 1,
       },
     ]);
+    const math = await getLessonGradeHistory({ id: teacherId, role: "TEACHER" } as never, {
+      groupId,
+      courseKey: courseId,
+    });
+    expect(math.summaries[0]).toMatchObject({ studentName: "Другой", average: null, count: 0 });
+    expect(math.summaries[1]).toMatchObject({ studentName: "Студент", average: 91, count: 1 });
     const otherCourse = await getLessonGradeHistory({ id: teacherId, role: "TEACHER" } as never, {
       groupId,
       courseKey: "another-course",
     });
     expect(otherCourse.total.grades).toBe(0);
-    expect(otherCourse.grades).toEqual([]);
+    expect(otherCourse.summaries).toEqual([]);
   });
 });

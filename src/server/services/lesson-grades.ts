@@ -400,7 +400,7 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
       groupId: null,
       courses: [],
       students: [],
-      grades: [],
+      summaries: [],
       total: { grades: 0, days: 0, students: 0, average: null },
       hasMore: false,
     };
@@ -409,7 +409,7 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
   const groupId = access.groupId;
   const group = await prisma.studyGroup.findUnique({
     where: { id: groupId },
-    select: { curatorId: true },
+    select: { curatorId: true, name: true },
   });
   const grades = await prisma.lessonGrade.findMany({
     where: { groupId },
@@ -427,7 +427,7 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
   const manualIds = grades
     .filter((grade) => grade.lessonKey.startsWith("manual:"))
     .map((grade) => grade.lessonKey.slice(7));
-  const [manualEntries, importedLessons, groupCourses] = await Promise.all([
+  const [manualEntries, importedLessons, groupCourses, members] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: { id: { in: manualIds }, groupId },
       select: { id: true, teacherId: true, course: { select: { id: true, title: true } } },
@@ -439,6 +439,10 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
         OR: [{ scheduleEntries: { some: { groupId } } }, { enrollments: { some: { groupId } } }],
       },
       select: { id: true, title: true, subject: { select: { nameRu: true } } },
+    }),
+    prisma.groupMember.findMany({
+      where: { groupId, leftAt: null, student: { status: "ACTIVE", deletedAt: null } },
+      select: { student: { select: { id: true, name: true } } },
     }),
   ]);
   const manualCourses = new Map(manualEntries.map((entry) => [`manual:${entry.id}`, entry.course]));
@@ -497,9 +501,10 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
     ).values(),
   ].sort((a, b) => a.title.localeCompare(b.title, "ru"));
   const students = [
-    ...new Map(
-      rows.map((row) => [row.studentId, { id: row.studentId, name: row.studentName }]),
-    ).values(),
+    ...new Map([
+      ...members.map(({ student }) => [student.id, student] as const),
+      ...rows.map((row) => [row.studentId, { id: row.studentId, name: row.studentName }] as const),
+    ]).values(),
   ].sort((a, b) => a.name.localeCompare(b.name, "ru"));
   const selected = rows.filter(
     (row) =>
@@ -509,19 +514,80 @@ export async function getLessonGradeHistory(actor: Actor, input: unknown) {
   const total = {
     grades: selected.length,
     days: new Set(selected.map((row) => row.date)).size,
-    students: new Set(selected.map((row) => row.studentId)).size,
+    students: students.filter(
+      (student) => !parsed.data.studentId || student.id === parsed.data.studentId,
+    ).length,
     average: selected.length
       ? selected.reduce((sum, row) => sum + row.value, 0) / selected.length
       : null,
   };
-  const page = selected.slice(parsed.data.offset, parsed.data.offset + 100);
+  const summaryMap = new Map<
+    string,
+    {
+      studentId: string;
+      studentName: string;
+      groupName: string;
+      courseKey: string;
+      courseTitle: string;
+      scoreTotal: number;
+      count: number;
+    }
+  >();
+  for (const row of selected) {
+    const key = `${row.studentId}:${row.courseKey}`;
+    const summary = summaryMap.get(key) ?? {
+      studentId: row.studentId,
+      studentName: row.studentName,
+      groupName: group?.name ?? "—",
+      courseKey: row.courseKey,
+      courseTitle: row.courseTitle,
+      scoreTotal: 0,
+      count: 0,
+    };
+    summary.scoreTotal += row.value;
+    summary.count += 1;
+    summaryMap.set(key, summary);
+  }
+  const selectedCourse = courses.find((course) => course.key === parsed.data.courseKey);
+  for (const student of students) {
+    if (parsed.data.studentId && student.id !== parsed.data.studentId) continue;
+    if (parsed.data.courseKey && !selectedCourse) continue;
+    const key = `${student.id}:${selectedCourse?.key ?? ""}`;
+    if (
+      selectedCourse
+        ? summaryMap.has(key)
+        : [...summaryMap.values()].some((row) => row.studentId === student.id)
+    )
+      continue;
+    summaryMap.set(key, {
+      studentId: student.id,
+      studentName: student.name,
+      groupName: group?.name ?? "—",
+      courseKey: selectedCourse?.key ?? "",
+      courseTitle: selectedCourse?.title ?? "—",
+      scoreTotal: 0,
+      count: 0,
+    });
+  }
+  const summaries = [...summaryMap.values()]
+    .sort(
+      (a, b) =>
+        a.studentName.localeCompare(b.studentName, "ru") ||
+        a.courseTitle.localeCompare(b.courseTitle, "ru"),
+    )
+    .map(({ scoreTotal, count, ...summary }) => ({
+      ...summary,
+      average: count ? scoreTotal / count : null,
+      count,
+    }));
+  const page = summaries.slice(parsed.data.offset, parsed.data.offset + 100);
   return {
     groups: access.groups,
     groupId,
     courses,
     students,
-    grades: page,
+    summaries: page,
     total,
-    hasMore: parsed.data.offset + page.length < selected.length,
+    hasMore: parsed.data.offset + page.length < summaries.length,
   };
 }

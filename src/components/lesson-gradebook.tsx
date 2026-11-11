@@ -32,6 +32,7 @@ const labels = {
     course: "Предмет",
     allCourses: "Все предметы",
     average: "Средний балл",
+    gradesCount: "Оценок",
     showMore: "Показать ещё",
     rangeErrorDates: "Выберите период не длиннее 367 дней.",
     date: "Дата",
@@ -84,6 +85,7 @@ const labels = {
     course: "Пән",
     allCourses: "Барлық пәндер",
     average: "Орташа ұпай",
+    gradesCount: "Бағалар",
     showMore: "Тағы көрсету",
     rangeErrorDates: "367 күннен аспайтын кезеңді таңдаңыз.",
     date: "Күні",
@@ -136,6 +138,7 @@ const labels = {
     course: "Subject",
     allCourses: "All subjects",
     average: "Average score",
+    gradesCount: "Grades",
     showMore: "Show more",
     rangeErrorDates: "Choose a period of no more than 367 days.",
     date: "Date",
@@ -181,14 +184,14 @@ type History = {
   students: { id: string; name: string }[];
   total: { grades: number; days: number; students: number; average: number | null };
   hasMore: boolean;
-  grades: {
-    id: string;
+  summaries: {
     studentId: string;
     studentName: string;
-    date: string;
-    value: number;
+    groupName: string;
     courseKey: string;
     courseTitle: string;
+    average: number | null;
+    count: number;
   }[];
 };
 
@@ -413,7 +416,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
             ? (data as History)
             : {
                 ...(data as History),
-                grades: [...(current?.grades ?? []), ...(data as History).grades],
+                summaries: [...(current?.summaries ?? []), ...(data as History).summaries],
               },
         );
         setGroupId(data.groupId || "");
@@ -494,7 +497,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
   const selectedCourseTitle =
     view === "all" ? history?.courses.find((item) => item.key === course)?.title : course;
   const visibleLessons = book?.lessons.filter((lesson) => !course || lesson.title === course) ?? [];
-  const visibleHistory = history?.grades ?? [];
+  const visibleHistory = history?.summaries ?? [];
   const dateLabel = (date: string) => formatDate(date, dateLocale);
   const lessonCount = view === "all" ? (history?.total.days ?? 0) : visibleLessons.length;
   const visibleScores =
@@ -801,19 +804,25 @@ export function LessonGradebook({ locale }: { locale: string }) {
                   <table className="gradebook-table lesson-grade-history-table">
                     <thead>
                       <tr>
-                        <th scope="col">{copy.date}</th>
                         <th scope="col">{copy.student}</th>
+                        <th scope="col">{copy.group}</th>
                         <th scope="col">{copy.course}</th>
-                        <th scope="col">{copy.grade}</th>
+                        <th scope="col">{copy.average}</th>
+                        <th scope="col">{copy.gradesCount}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleHistory.map((grade) => (
-                        <tr key={grade.id}>
-                          <td>{formatFullDate(grade.date, dateLocale)}</td>
-                          <td>{grade.studentName}</td>
-                          <td>{grade.courseTitle}</td>
-                          <td>{grade.value} / 100</td>
+                      {visibleHistory.map((summary) => (
+                        <tr key={`${summary.studentId}:${summary.courseKey}`}>
+                          <td>{summary.studentName}</td>
+                          <td>{summary.groupName}</td>
+                          <td>{summary.courseTitle}</td>
+                          <td>
+                            {summary.average === null
+                              ? "—"
+                              : `${summary.average.toLocaleString(dateLocale, { maximumFractionDigits: 1 })} / 100`}
+                          </td>
+                          <td>{summary.count}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -193,6 +193,9 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
                   <span className="global-search-result-copy">
                     <strong>{item.title}</strong>
                     <small>{item.description}</small>
+                    {item.groups?.length ? (
+                      <span className="global-search-result-groups">{item.groups.join(" · ")}</span>
+                    ) : null}
                   </span>
                   <span className="global-search-kind">{kindLabels[item.kind]}</span>
                 </Link>
