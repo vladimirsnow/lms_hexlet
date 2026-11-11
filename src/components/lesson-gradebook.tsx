@@ -15,11 +15,25 @@ const labels = {
     moreFilters: "Ещё фильтры",
     hideFilters: "Скрыть",
     scale: "100-балльная система",
-    lessonMetric: "Пар за день",
+    lessonMetric: "Занятий",
+    daysMetric: "Дней с оценками",
     studentMetric: "Студентов",
     filledMetric: "Оценок выставлено",
     group: "Группа",
     week: "Неделя",
+    period: "Период",
+    view: "Просмотр",
+    dayView: "День",
+    weekView: "Неделя",
+    periodView: "Период",
+    allView: "За всё время",
+    from: "С",
+    to: "По",
+    course: "Предмет",
+    allCourses: "Все предметы",
+    average: "Средний балл",
+    showMore: "Показать ещё",
+    rangeErrorDates: "Выберите период не длиннее 367 дней.",
     date: "Дата",
     student: "Студент",
     allStudents: "Все студенты",
@@ -30,7 +44,8 @@ const labels = {
     nextDay: "Следующий день",
     loading: "Загружаем журнал…",
     noGroups: "У вас пока нет доступных групп.",
-    noLessons: "В этот день у группы нет занятий. Выберите другую дату или перелистните день.",
+    noLessons:
+      "В выбранном периоде нет занятий по этому предмету. Измените дату, период или предмет.",
     nearestDay: "Показан ближайший день с занятиями из расписания.",
     noStudents: "Студенты не найдены.",
     saved: "Оценка сохранена.",
@@ -52,11 +67,25 @@ const labels = {
     moreFilters: "Басқа сүзгілер",
     hideFilters: "Жасыру",
     scale: "100 балдық жүйе",
-    lessonMetric: "Күндегі сабақтар",
+    lessonMetric: "Сабақтар",
+    daysMetric: "Бағаланған күндер",
     studentMetric: "Студенттер",
     filledMetric: "Қойылған бағалар",
     group: "Топ",
     week: "Апта",
+    period: "Кезең",
+    view: "Көрініс",
+    dayView: "Күн",
+    weekView: "Апта",
+    periodView: "Кезең",
+    allView: "Барлық уақыт",
+    from: "Бастап",
+    to: "Дейін",
+    course: "Пән",
+    allCourses: "Барлық пәндер",
+    average: "Орташа ұпай",
+    showMore: "Тағы көрсету",
+    rangeErrorDates: "367 күннен аспайтын кезеңді таңдаңыз.",
     date: "Күні",
     student: "Студент",
     allStudents: "Барлық студенттер",
@@ -67,7 +96,8 @@ const labels = {
     nextDay: "Келесі күн",
     loading: "Журнал жүктелуде…",
     noGroups: "Қолжетімді топтар әлі жоқ.",
-    noLessons: "Бұл күні топтың сабағы жоқ. Басқа күнді таңдаңыз немесе күндерді ауыстырыңыз.",
+    noLessons:
+      "Таңдалған кезеңде бұл пән бойынша сабақ жоқ. Күнді, кезеңді немесе пәнді өзгертіңіз.",
     nearestDay: "Кестедегі ең жақын сабақ күні көрсетілді.",
     noStudents: "Студенттер табылмады.",
     saved: "Баға сақталды.",
@@ -89,11 +119,25 @@ const labels = {
     moreFilters: "More filters",
     hideFilters: "Hide filters",
     scale: "100-point scale",
-    lessonMetric: "Classes today",
+    lessonMetric: "Classes",
+    daysMetric: "Days with grades",
     studentMetric: "Students",
     filledMetric: "Scores entered",
     group: "Group",
     week: "Week",
+    period: "Period",
+    view: "View",
+    dayView: "Day",
+    weekView: "Week",
+    periodView: "Period",
+    allView: "All time",
+    from: "From",
+    to: "To",
+    course: "Subject",
+    allCourses: "All subjects",
+    average: "Average score",
+    showMore: "Show more",
+    rangeErrorDates: "Choose a period of no more than 367 days.",
     date: "Date",
     student: "Student",
     allStudents: "All students",
@@ -104,7 +148,8 @@ const labels = {
     nextDay: "Next day",
     loading: "Loading gradebook…",
     noGroups: "You have no available groups yet.",
-    noLessons: "The group has no classes on this day. Choose another date or turn the day.",
+    noLessons:
+      "No classes for this subject in the selected period. Change the date, period, or subject.",
     nearestDay: "Showing the nearest class day in the schedule.",
     noStudents: "No students found.",
     saved: "Grade saved.",
@@ -127,6 +172,24 @@ type Book = {
   grades: { lessonKey: string; date: string; studentId: string; value: number }[];
   availableDates: string[];
   suggestedDate: string | null;
+};
+
+type History = {
+  groups: { id: string; name: string }[];
+  groupId: string | null;
+  courses: { key: string; title: string }[];
+  students: { id: string; name: string }[];
+  total: { grades: number; days: number; students: number; average: number | null };
+  hasMore: boolean;
+  grades: {
+    id: string;
+    studentId: string;
+    studentName: string;
+    date: string;
+    value: number;
+    courseKey: string;
+    courseTitle: string;
+  }[];
 };
 
 function today() {
@@ -211,10 +274,18 @@ export function LessonGradebook({ locale }: { locale: string }) {
     });
   }, [initial.from, dateLocale]);
   const [date, setDate] = useState(today());
+  const [view, setView] = useState<"day" | "week" | "period" | "all">("day");
+  const [periodFrom, setPeriodFrom] = useState(shiftDate(today(), -30));
+  const [periodTo, setPeriodTo] = useState(today());
+  const [course, setCourse] = useState("");
   const [week, setWeek] = useState(isoWeek(initial.from));
   const [groupId, setGroupId] = useState("");
   const [studentId, setStudentId] = useState("");
   const [book, setBook] = useState<Book | null>(null);
+  const [history, setHistory] = useState<History | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [grades, setGrades] = useState<Record<string, number>>({});
   const [draftGrades, setDraftGrades] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -229,7 +300,22 @@ export function LessonGradebook({ locale }: { locale: string }) {
       setLoading(true);
       setError("");
       try {
-        const query = new URLSearchParams({ from: date, to: date });
+        const bounds =
+          view === "day"
+            ? { from: date, to: date }
+            : view === "week"
+              ? weekBounds(date)
+              : { from: periodFrom, to: periodTo };
+        const days =
+          (Date.parse(`${bounds.to}T00:00:00Z`) - Date.parse(`${bounds.from}T00:00:00Z`)) /
+          86400000;
+        if (!Number.isFinite(days) || days < 0 || days > 366) {
+          setError(copy.rangeErrorDates);
+          setBook(null);
+          setLoading(false);
+          return;
+        }
+        const query = new URLSearchParams(bounds);
         if (groupId) query.set("groupId", groupId);
         const response = await apiFetch(`/api/v1/lesson-grades?${query}`, {
           cache: "no-store",
@@ -239,6 +325,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
         if (signal.aborted) return;
         if (!response.ok) throw new Error(data?.error?.message || copy.loadError);
         if (
+          view === "day" &&
           autoSelectDate.current &&
           !data.lessons.length &&
           data.suggestedDate &&
@@ -253,6 +340,12 @@ export function LessonGradebook({ locale }: { locale: string }) {
         }
         autoSelectDate.current = false;
         setBook(data);
+        setCourse((current) =>
+          current &&
+          !data.lessons.some((lesson: Book["lessons"][number]) => lesson.title === current)
+            ? ""
+            : current,
+        );
         setGroupId(data.groupId || "");
         const nextGrades = Object.fromEntries(
           data.grades.map((grade: Book["grades"][number]) => [
@@ -272,10 +365,20 @@ export function LessonGradebook({ locale }: { locale: string }) {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [date, groupId, copy.loadError, copy.nearestDay],
+    [
+      date,
+      view,
+      periodFrom,
+      periodTo,
+      groupId,
+      copy.loadError,
+      copy.nearestDay,
+      copy.rangeErrorDates,
+    ],
   );
 
   useEffect(() => {
+    if (view === "all") return;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => {
       void load(controller.signal);
@@ -284,7 +387,48 @@ export function LessonGradebook({ locale }: { locale: string }) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [load]);
+  }, [load, view]);
+
+  useEffect(() => {
+    if (view !== "all") return;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setHistoryLoading(true);
+      setHistoryError("");
+      try {
+        const query = new URLSearchParams();
+        if (groupId) query.set("groupId", groupId);
+        if (course) query.set("courseKey", course);
+        if (studentId) query.set("studentId", studentId);
+        query.set("offset", String(historyOffset));
+        const response = await apiFetch(`/api/v1/lesson-grades/history?${query}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        if (!response.ok) throw new Error(data?.error?.message || copy.loadError);
+        setHistory((current) =>
+          historyOffset === 0
+            ? (data as History)
+            : {
+                ...(data as History),
+                grades: [...(current?.grades ?? []), ...(data as History).grades],
+              },
+        );
+        setGroupId(data.groupId || "");
+      } catch (cause) {
+        if (!controller.signal.aborted)
+          setHistoryError(cause instanceof Error ? cause.message : copy.loadError);
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false);
+      }
+    }, 0);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [view, groupId, course, studentId, historyOffset, copy.loadError]);
 
   async function save(studentId: string, lesson: Book["lessons"][number], value: string) {
     if (!book?.groupId) return;
@@ -342,23 +486,56 @@ export function LessonGradebook({ locale }: { locale: string }) {
     }
   }
 
-  const students = book?.students.filter((student) => !studentId || student.id === studentId) ?? [];
-  const dateLabel = (date: string) => formatDate(date, dateLocale);
-  const lessonCount = book?.lessons.length ?? 0;
-  const filledCount = students.reduce(
-    (total, student) =>
-      total +
-      (book?.lessons.reduce(
-        (count, lesson) =>
-          count + (grades[cellId(student.id, lesson.key, lesson.date)] !== undefined ? 1 : 0),
-        0,
-      ) ?? 0),
-    0,
+  const allStudents = view === "all" ? (history?.students ?? []) : (book?.students ?? []);
+  const students = allStudents.filter((student) => !studentId || student.id === studentId);
+  const courses = [...new Set(book?.lessons.map((lesson) => lesson.title) ?? [])].sort((a, b) =>
+    a.localeCompare(b, dateLocale),
   );
+  const selectedCourseTitle =
+    view === "all" ? history?.courses.find((item) => item.key === course)?.title : course;
+  const visibleLessons = book?.lessons.filter((lesson) => !course || lesson.title === course) ?? [];
+  const visibleHistory = history?.grades ?? [];
+  const dateLabel = (date: string) => formatDate(date, dateLocale);
+  const lessonCount = view === "all" ? (history?.total.days ?? 0) : visibleLessons.length;
+  const visibleScores =
+    view === "all"
+      ? []
+      : students.flatMap((student) =>
+          visibleLessons.flatMap((lesson) => {
+            const score = grades[cellId(student.id, lesson.key, lesson.date)];
+            return score === undefined ? [] : [score];
+          }),
+        );
+  const average = (scores: number[]) =>
+    scores.length
+      ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toLocaleString(dateLocale, {
+          maximumFractionDigits: 1,
+        })
+      : "—";
+  const periodLabel =
+    view === "all"
+      ? copy.allView
+      : view === "day"
+        ? formatFullDate(date, dateLocale)
+        : `${formatDate(view === "week" ? weekBounds(date).from : periodFrom, dateLocale)} — ${formatDate(view === "week" ? weekBounds(date).to : periodTo, dateLocale)}`;
+  const filledCount =
+    view === "all"
+      ? (history?.total.grades ?? 0)
+      : students.reduce(
+          (total, student) =>
+            total +
+            (visibleLessons.reduce(
+              (count, lesson) =>
+                count + (grades[cellId(student.id, lesson.key, lesson.date)] !== undefined ? 1 : 0),
+              0,
+            ) ?? 0),
+          0,
+        );
   function moveDay(offset: number) {
     const nextDate = shiftDate(date, offset);
     autoSelectDate.current = false;
     setDate(nextDate);
+    setView("day");
     setWeek(isoWeek(nextDate));
     setNotice("");
   }
@@ -382,7 +559,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               <p className="eyebrow">{copy.filters}</p>
               <h2>{copy.groupLessons}</h2>
             </div>
-            <span className="lesson-gradebook-period">{formatFullDate(date, dateLocale)}</span>
+            <span className="lesson-gradebook-period">{periodLabel}</span>
           </div>
           <div className={`lesson-gradebook-filters${showMoreFilters ? " is-expanded" : ""}`}>
             <label>
@@ -390,20 +567,28 @@ export function LessonGradebook({ locale }: { locale: string }) {
               <select
                 value={groupId}
                 onChange={(event) => {
-                  autoSelectDate.current = true;
+                  autoSelectDate.current = false;
                   setGroupId(event.target.value);
                   setStudentId("");
+                  setCourse("");
+                  setHistoryOffset(0);
                 }}
-                disabled={!book?.groups.length}
+                disabled={
+                  !(view === "all"
+                    ? history?.groups.length || book?.groups.length
+                    : book?.groups.length)
+                }
               >
                 <option value="" disabled>
                   {copy.chooseGroup}
                 </option>
-                {book?.groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
+                {(view === "all" ? (history?.groups ?? book?.groups) : book?.groups)?.map(
+                  (group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ),
+                )}
               </select>
             </label>
             <label>
@@ -412,6 +597,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
                 value={week}
                 onChange={(event) => {
                   autoSelectDate.current = false;
+                  setView("week");
                   const bounds = weekFromInput(event.target.value);
                   setWeek(event.target.value);
                   if (bounds) {
@@ -453,6 +639,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
                 onChange={(event) => {
                   if (!event.target.value) return;
                   autoSelectDate.current = false;
+                  setView("day");
                   setDate(event.target.value);
                   setWeek(isoWeek(event.target.value));
                   setNotice("");
@@ -462,9 +649,15 @@ export function LessonGradebook({ locale }: { locale: string }) {
             </label>
             <label>
               {copy.student}
-              <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
+              <select
+                value={studentId}
+                onChange={(event) => {
+                  setStudentId(event.target.value);
+                  setHistoryOffset(0);
+                }}
+              >
                 <option value="">{copy.allStudents}</option>
-                {book?.students.map((student) => (
+                {allStudents.map((student) => (
                   <option key={student.id} value={student.id}>
                     {student.name}
                   </option>
@@ -477,6 +670,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               onClick={() => {
                 autoSelectDate.current = false;
                 const todayDate = today();
+                setView("day");
                 setDate(todayDate);
                 setWeek(isoWeek(todayDate));
               }}
@@ -484,31 +678,109 @@ export function LessonGradebook({ locale }: { locale: string }) {
               {copy.today}
             </button>
           </div>
+          <div className="lesson-gradebook-extra-filters">
+            <label>
+              {copy.view}
+              <select
+                value={view}
+                onChange={(event) => {
+                  autoSelectDate.current = false;
+                  setCourse("");
+                  setStudentId("");
+                  setHistoryOffset(0);
+                  setView(event.target.value as "day" | "week" | "period" | "all");
+                }}
+              >
+                <option value="day">{copy.dayView}</option>
+                <option value="week">{copy.weekView}</option>
+                <option value="period">{copy.periodView}</option>
+                <option value="all">{copy.allView}</option>
+              </select>
+            </label>
+            {view === "period" ? (
+              <>
+                <label>
+                  {copy.from}
+                  <input
+                    type="date"
+                    value={periodFrom}
+                    onChange={(event) => setPeriodFrom(event.target.value)}
+                  />
+                </label>
+                <label>
+                  {copy.to}
+                  <input
+                    type="date"
+                    value={periodTo}
+                    onChange={(event) => setPeriodTo(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
+            <label>
+              {copy.course}
+              <select
+                value={course}
+                onChange={(event) => {
+                  setCourse(event.target.value);
+                  setHistoryOffset(0);
+                }}
+              >
+                <option value="">{copy.allCourses}</option>
+                {(view === "all"
+                  ? (history?.courses.map((item) => ({ key: item.key, title: item.title })) ?? [])
+                  : courses.map((title) => ({ key: title, title }))
+                ).map((item) => (
+                  <option value={item.key} key={item.key}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
         <div className="lesson-gradebook-summary" aria-live="polite">
           <div>
             <strong>{lessonCount}</strong>
-            <span>{copy.lessonMetric}</span>
+            <span>{view === "all" ? copy.daysMetric : copy.lessonMetric}</span>
           </div>
           <div>
-            <strong>{students.length}</strong>
+            <strong>{view === "all" ? (history?.total.students ?? 0) : students.length}</strong>
             <span>{copy.studentMetric}</span>
           </div>
           <div>
             <strong>{filledCount}</strong>
             <span>{copy.filledMetric}</span>
           </div>
+          <div>
+            <strong>
+              {view === "all"
+                ? history?.total.average === null || history?.total.average === undefined
+                  ? "—"
+                  : history.total.average.toLocaleString(dateLocale, { maximumFractionDigits: 1 })
+                : average(visibleScores)}
+            </strong>
+            <span>{copy.average}</span>
+          </div>
         </div>
         <div className="lesson-gradebook-panel">
           <div className="lesson-gradebook-table-heading">
             <div>
               <p className="eyebrow">{copy.journal}</p>
-              <h2>{formatFullDate(date, dateLocale)}</h2>
+              <h2>
+                {periodLabel}
+                {selectedCourseTitle ? ` · ${selectedCourseTitle}` : ""}
+              </h2>
             </div>
           </div>
-          {error ? (
+          {view !== "all" && error ? (
             <p className="schedule-form-error" role="alert">
               {error}
+            </p>
+          ) : null}
+          {view === "all" && historyError ? (
+            <p className="schedule-form-error" role="alert">
+              {historyError}
             </p>
           ) : null}
           {notice ? (
@@ -516,13 +788,56 @@ export function LessonGradebook({ locale }: { locale: string }) {
               {notice}
             </p>
           ) : null}
-          {loading ? (
+          {view === "all" ? (
+            historyError ? null : historyLoading || !history ? (
+              <p className="course-material-empty" role="status">
+                {copy.loading}
+              </p>
+            ) : !visibleHistory.length ? (
+              <p className="course-material-empty">{copy.noLessons}</p>
+            ) : (
+              <>
+                <div className="gradebook-table-wrap">
+                  <table className="gradebook-table lesson-grade-history-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{copy.date}</th>
+                        <th scope="col">{copy.student}</th>
+                        <th scope="col">{copy.course}</th>
+                        <th scope="col">{copy.grade}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleHistory.map((grade) => (
+                        <tr key={grade.id}>
+                          <td>{formatFullDate(grade.date, dateLocale)}</td>
+                          <td>{grade.studentName}</td>
+                          <td>{grade.courseTitle}</td>
+                          <td>{grade.value} / 100</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {history?.hasMore ? (
+                  <button
+                    className="button button-muted lesson-grade-history-more"
+                    type="button"
+                    disabled={historyLoading}
+                    onClick={() => setHistoryOffset((offset) => offset + 100)}
+                  >
+                    {copy.showMore}
+                  </button>
+                ) : null}
+              </>
+            )
+          ) : loading ? (
             <p className="course-material-empty" role="status">
               {copy.loading}
             </p>
           ) : !book?.groups.length ? (
             <p className="course-material-empty">{copy.noGroups}</p>
-          ) : !book.lessons.length ? (
+          ) : !visibleLessons.length ? (
             <p className="course-material-empty">{copy.noLessons}</p>
           ) : (
             <>
@@ -534,7 +849,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
                       <th scope="col" className="lesson-gradebook-student">
                         {copy.student}
                       </th>
-                      {book.lessons.map((lesson) => (
+                      {visibleLessons.map((lesson) => (
                         <th scope="col" key={`${lesson.key}:${lesson.date}`}>
                           <span className="lesson-gradebook-weekday">
                             {formatWeekday(lesson.date, dateLocale)}
@@ -544,6 +859,9 @@ export function LessonGradebook({ locale }: { locale: string }) {
                           <span className="lesson-gradebook-lesson-title">{lesson.title}</span>
                         </th>
                       ))}
+                      <th scope="col" className="lesson-gradebook-average">
+                        {copy.average}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -555,7 +873,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
                           </span>
                           <span className="lesson-gradebook-student-name">{student.name}</span>
                         </th>
-                        {book.lessons.map((lesson) => {
+                        {visibleLessons.map((lesson) => {
                           const id = cellId(student.id, lesson.key, lesson.date);
                           return (
                             <td key={id}>
@@ -620,6 +938,14 @@ export function LessonGradebook({ locale }: { locale: string }) {
                             </td>
                           );
                         })}
+                        <td className="lesson-gradebook-average">
+                          {average(
+                            visibleLessons.flatMap((lesson) => {
+                              const score = grades[cellId(student.id, lesson.key, lesson.date)];
+                              return score === undefined ? [] : [score];
+                            }),
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -630,7 +956,7 @@ export function LessonGradebook({ locale }: { locale: string }) {
               </div>
             </>
           )}
-          {book?.groups.length ? (
+          {view !== "all" && book?.groups.length ? (
             <nav className="lesson-gradebook-day-nav" aria-label={copy.date}>
               <button
                 className="button button-muted"

@@ -31,21 +31,39 @@ function lessonTime(minutes: number) {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
+async function getImportedLessons(prisma: ReturnType<typeof getPrisma>) {
+  const imports = await prisma.scheduleImport.findMany({
+    orderBy: { createdAt: "desc" },
+    select: { entries: true, createdAt: true },
+  });
+  const lessons = new Map<string, ImportedLesson>();
+  for (const [index, imported] of imports.entries()) {
+    const replacedOn =
+      index === 0
+        ? null
+        : imports[index - 1].createdAt.toLocaleDateString("sv-SE", { timeZone: "Asia/Almaty" });
+    for (const entry of imported.entries as unknown as ImportedLesson[]) {
+      if (!entry.groupId) continue;
+      if (replacedOn && entry.date >= replacedOn) continue;
+      const slot = `${entry.groupId}:${entry.date}:${entry.pair}:${entry.startTime}`;
+      if (!lessons.has(slot)) lessons.set(slot, entry);
+    }
+  }
+  return [...lessons.values()];
+}
+
 export async function getLessonGradebook(actor: Actor, input: unknown) {
   requireTeacher(actor);
   const parsed = filtersSchema.safeParse(input);
   if (!parsed.success) throw new ApiError(422, "INVALID_FILTER", "Проверьте даты и группу.");
   const { from, to } = parsed.data;
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000);
-  if (days < 0 || days > 62) {
-    throw new ApiError(422, "INVALID_PERIOD", "Выберите период не длиннее 63 дней.");
+  if (days < 0 || days > 366) {
+    throw new ApiError(422, "INVALID_PERIOD", "Выберите период не длиннее 367 дней.");
   }
   const prisma = getPrisma();
-  const [latestImport, manualGroups] = await Promise.all([
-    prisma.scheduleImport.findFirst({
-      orderBy: { createdAt: "desc" },
-      select: { entries: true },
-    }),
+  const [imported, manualGroups] = await Promise.all([
+    getImportedLessons(prisma),
     prisma.scheduleEntry.findMany({
       where: {
         deletedAt: null,
@@ -55,7 +73,6 @@ export async function getLessonGradebook(actor: Actor, input: unknown) {
       distinct: ["groupId"],
     }),
   ]);
-  const imported = (latestImport?.entries ?? []) as unknown as ImportedLesson[];
   const scheduledGroupIds = [
     ...new Set([
       ...imported.flatMap((entry) => (entry.groupId ? [entry.groupId] : [])),
@@ -277,4 +294,234 @@ export async function setLessonGrade(actor: Actor, input: unknown) {
     select: { value: true },
   });
   return grade;
+}
+
+export async function getMyLessonGrades(actor: Actor) {
+  if (actor.role !== "STUDENT")
+    throw new ApiError(403, "FORBIDDEN", "Оценки за занятия доступны студенту.");
+  const prisma = getPrisma();
+  const grades = await prisma.lessonGrade.findMany({
+    where: { studentId: actor.id },
+    orderBy: [{ sessionDate: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      lessonKey: true,
+      sessionDate: true,
+      groupId: true,
+      value: true,
+      group: { select: { name: true } },
+    },
+  });
+  if (!grades.length) return [];
+  const manualIds = grades
+    .filter((grade) => grade.lessonKey.startsWith("manual:"))
+    .map((grade) => grade.lessonKey.slice(7));
+  const [manualEntries, importedLessons, enrolledCourses] = await Promise.all([
+    prisma.scheduleEntry.findMany({
+      where: { id: { in: manualIds } },
+      select: { id: true, course: { select: { id: true, title: true, slug: true } } },
+    }),
+    getImportedLessons(prisma),
+    prisma.course.findMany({
+      where: { enrollments: { some: { studentId: actor.id } } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        subject: { select: { nameRu: true, nameKk: true, nameEn: true } },
+      },
+    }),
+  ]);
+  const manualCourses = new Map(manualEntries.map((entry) => [`manual:${entry.id}`, entry.course]));
+  const subjectCourses = new Map<string, { id: string; title: string; slug: string } | null>();
+  for (const course of enrolledCourses) {
+    for (const name of [
+      course.title,
+      course.subject.nameRu,
+      course.subject.nameKk,
+      course.subject.nameEn,
+    ]) {
+      if (!name) continue;
+      const key = name.trim().toLocaleLowerCase("ru");
+      if (!subjectCourses.has(key)) subjectCourses.set(key, course);
+      else if (subjectCourses.get(key)?.id !== course.id) subjectCourses.set(key, null);
+    }
+  }
+  const importedSubjects = new Map<string, string>();
+  for (const entry of importedLessons) {
+    if (!entry.groupId) continue;
+    const subjectHash = createHash("sha256")
+      .update(entry.subject.trim().toLocaleLowerCase("ru"))
+      .digest("hex")
+      .slice(0, 12);
+    const key = `import:${entry.groupId}:${entry.pair}:${entry.startTime}:${subjectHash}:${entry.date}`;
+    importedSubjects.set(key, entry.subject);
+  }
+  return grades.map((grade) => {
+    const date = grade.sessionDate.toISOString().slice(0, 10);
+    const manual = manualCourses.get(grade.lessonKey);
+    const importedSubject = importedSubjects.get(`${grade.lessonKey}:${date}`);
+    const matched = importedSubject
+      ? subjectCourses.get(importedSubject.trim().toLocaleLowerCase("ru"))
+      : null;
+    const courseTitle = manual?.title ?? matched?.title ?? importedSubject ?? grade.group.name;
+    return {
+      id: grade.id,
+      date,
+      value: grade.value,
+      courseTitle,
+      courseKey:
+        manual?.id ?? matched?.id ?? `subject:${courseTitle.trim().toLocaleLowerCase("ru")}`,
+      courseSlug: manual?.slug ?? matched?.slug ?? null,
+    };
+  });
+}
+
+export async function getLessonGradeHistory(actor: Actor, input: unknown) {
+  requireTeacher(actor);
+  const parsed = z
+    .object({
+      groupId: z.uuid().optional(),
+      courseKey: z.string().max(250).optional(),
+      studentId: z.uuid().optional(),
+      offset: z.number().int().min(0).max(1000000).default(0),
+    })
+    .safeParse(input);
+  if (!parsed.success) throw new ApiError(422, "INVALID_FILTER", "Проверьте группу.");
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Almaty" });
+  const access = await getLessonGradebook(actor, {
+    groupId: parsed.data.groupId,
+    from: today,
+    to: today,
+  });
+  if (!access.groupId)
+    return {
+      groups: access.groups,
+      groupId: null,
+      courses: [],
+      students: [],
+      grades: [],
+      total: { grades: 0, days: 0, students: 0, average: null },
+      hasMore: false,
+    };
+
+  const prisma = getPrisma();
+  const groupId = access.groupId;
+  const group = await prisma.studyGroup.findUnique({
+    where: { id: groupId },
+    select: { curatorId: true },
+  });
+  const grades = await prisma.lessonGrade.findMany({
+    where: { groupId },
+    orderBy: [{ sessionDate: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      lessonKey: true,
+      sessionDate: true,
+      value: true,
+      setById: true,
+      studentId: true,
+      student: { select: { name: true } },
+    },
+  });
+  const manualIds = grades
+    .filter((grade) => grade.lessonKey.startsWith("manual:"))
+    .map((grade) => grade.lessonKey.slice(7));
+  const [manualEntries, importedLessons, groupCourses] = await Promise.all([
+    prisma.scheduleEntry.findMany({
+      where: { id: { in: manualIds }, groupId },
+      select: { id: true, teacherId: true, course: { select: { id: true, title: true } } },
+    }),
+    getImportedLessons(prisma),
+    prisma.course.findMany({
+      where: {
+        deletedAt: null,
+        OR: [{ scheduleEntries: { some: { groupId } } }, { enrollments: { some: { groupId } } }],
+      },
+      select: { id: true, title: true, subject: { select: { nameRu: true } } },
+    }),
+  ]);
+  const manualCourses = new Map(manualEntries.map((entry) => [`manual:${entry.id}`, entry.course]));
+  const subjectCourses = new Map<string, { id: string; title: string } | null>();
+  for (const course of groupCourses) {
+    for (const name of [course.title, course.subject.nameRu]) {
+      const key = name.trim().toLocaleLowerCase("ru");
+      if (!subjectCourses.has(key)) subjectCourses.set(key, course);
+      else if (subjectCourses.get(key)?.id !== course.id) subjectCourses.set(key, null);
+    }
+  }
+  const importedSubjects = new Map<string, string>();
+  for (const entry of importedLessons) {
+    if (entry.groupId !== groupId) continue;
+    const subjectHash = createHash("sha256")
+      .update(entry.subject.trim().toLocaleLowerCase("ru"))
+      .digest("hex")
+      .slice(0, 12);
+    importedSubjects.set(
+      `import:${groupId}:${entry.pair}:${entry.startTime}:${subjectHash}:${entry.date}`,
+      entry.subject,
+    );
+  }
+  const manualTeachers = new Map(
+    manualEntries.map((entry) => [`manual:${entry.id}`, entry.teacherId]),
+  );
+  const rows = grades
+    .filter(
+      (grade) =>
+        group?.curatorId === actor.id ||
+        manualTeachers.get(grade.lessonKey) === actor.id ||
+        grade.setById === actor.id,
+    )
+    .map((grade) => {
+      const date = grade.sessionDate.toISOString().slice(0, 10);
+      const importedSubject = importedSubjects.get(`${grade.lessonKey}:${date}`);
+      const manual = manualCourses.get(grade.lessonKey);
+      const matched = importedSubject
+        ? subjectCourses.get(importedSubject.trim().toLocaleLowerCase("ru"))
+        : null;
+      const courseTitle = manual?.title ?? matched?.title ?? importedSubject ?? "Занятие";
+      return {
+        id: grade.id,
+        studentId: grade.studentId,
+        studentName: grade.student.name,
+        date,
+        value: grade.value,
+        courseKey:
+          manual?.id ?? matched?.id ?? `subject:${courseTitle.trim().toLocaleLowerCase("ru")}`,
+        courseTitle,
+      };
+    });
+  const courses = [
+    ...new Map(
+      rows.map((row) => [row.courseKey, { key: row.courseKey, title: row.courseTitle }]),
+    ).values(),
+  ].sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  const students = [
+    ...new Map(
+      rows.map((row) => [row.studentId, { id: row.studentId, name: row.studentName }]),
+    ).values(),
+  ].sort((a, b) => a.name.localeCompare(b.name, "ru"));
+  const selected = rows.filter(
+    (row) =>
+      (!parsed.data.courseKey || row.courseKey === parsed.data.courseKey) &&
+      (!parsed.data.studentId || row.studentId === parsed.data.studentId),
+  );
+  const total = {
+    grades: selected.length,
+    days: new Set(selected.map((row) => row.date)).size,
+    students: new Set(selected.map((row) => row.studentId)).size,
+    average: selected.length
+      ? selected.reduce((sum, row) => sum + row.value, 0) / selected.length
+      : null,
+  };
+  const page = selected.slice(parsed.data.offset, parsed.data.offset + 100);
+  return {
+    groups: access.groups,
+    groupId,
+    courses,
+    students,
+    grades: page,
+    total,
+    hasMore: parsed.data.offset + page.length < selected.length,
+  };
 }

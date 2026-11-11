@@ -21,7 +21,14 @@ function visibleCourseWhere(actor: Actor): Prisma.CourseWhereInput {
   if (actor.role === "TEACHER") {
     return {
       status: { not: "ARCHIVED" },
-      teacherAssignments: { some: { teacherId: actor.id } },
+      OR: [
+        { teacherAssignments: { some: { teacherId: actor.id } } },
+        {
+          enrollments: {
+            some: { status: "ACTIVE", group: { curatorId: actor.id } },
+          },
+        },
+      ],
     };
   }
 
@@ -31,20 +38,27 @@ function visibleCourseWhere(actor: Actor): Prisma.CourseWhereInput {
 export async function searchLearningContent(actor: Actor, query: string): Promise<SearchResult[]> {
   const prisma = getPrisma();
   const term = query.trim();
-  if (term.length < 2) return [];
+  if (!term) return [];
 
   const now = new Date();
   const courseAccess = visibleCourseWhere(actor);
-  const [courses, assignments, lessons] = await Promise.all([
+  // Course access may contain an OR clause (for example a teacher's own and curated
+  // courses). Keep it in AND so the text match cannot replace that access rule.
+  const courseTextMatch: Prisma.CourseWhereInput = {
+    OR: [
+      { title: { contains: term, mode: "insensitive" } },
+      { slug: { contains: term, mode: "insensitive" } },
+      { subject: { nameRu: { contains: term, mode: "insensitive" } } },
+      { subject: { nameKk: { contains: term, mode: "insensitive" } } },
+      { subject: { nameEn: { contains: term, mode: "insensitive" } } },
+      { subject: { code: { contains: term, mode: "insensitive" } } },
+    ],
+  };
+  const results = await Promise.allSettled([
     prisma.course.findMany({
       where: {
         deletedAt: null,
-        ...courseAccess,
-        OR: [
-          { title: { contains: term, mode: "insensitive" } },
-          { slug: { contains: term, mode: "insensitive" } },
-          { subject: { nameRu: { contains: term, mode: "insensitive" } } },
-        ],
+        AND: [courseAccess, courseTextMatch],
       },
       select: { id: true, title: true, slug: true, subject: { select: { nameRu: true } } },
       orderBy: { title: "asc" },
@@ -106,6 +120,12 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
       take: 5,
     }),
   ]);
+  if (results.every((result) => result.status === "rejected")) {
+    throw results[0].status === "rejected" ? results[0].reason : new Error("Search unavailable");
+  }
+  const courses = results[0].status === "fulfilled" ? results[0].value : [];
+  const assignments = results[1].status === "fulfilled" ? results[1].value : [];
+  const lessons = results[2].status === "fulfilled" ? results[2].value : [];
 
   return [
     ...courses.map((course) => ({

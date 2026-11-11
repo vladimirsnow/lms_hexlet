@@ -22,12 +22,18 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
   const [resultsFor, setResultsFor] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const listId = "global-search-results";
   const term = query.trim();
+  const errorLabel = {
+    ru: "Не удалось выполнить поиск. Попробуйте ещё раз.",
+    kk: "Іздеу орындалмады. Қайта көріңіз.",
+    en: "Search failed. Please try again.",
+  }[locale];
   const visibleResults = resultsFor === term ? results : [];
   const hasVisibleResults = visibleResults.length > 0;
 
@@ -53,25 +59,33 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
   }, []);
 
   useEffect(() => {
-    if (term.length < 2 || !isOpen) {
+    if (!term || !isOpen) {
       return;
     }
 
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setIsLoading(true);
+      setSearchError(false);
       try {
         const response = await apiFetch(`/api/v1/search?q=${encodeURIComponent(term)}`, {
           cache: "no-store",
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Search failed");
-        setResults((await response.json()) as SearchResult[]);
+        const items: unknown = await response.json();
+        if (!Array.isArray(items)) throw new Error("Invalid search response");
+        if (controller.signal.aborted) return;
+        setResults(items as SearchResult[]);
         setResultsFor(term);
       } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
+        if (
+          !controller.signal.aborted &&
+          !(error instanceof DOMException && error.name === "AbortError")
+        ) {
           setResults([]);
           setResultsFor(term);
+          setSearchError(true);
         }
       } finally {
         if (!controller.signal.aborted) setIsLoading(false);
@@ -98,6 +112,7 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
         }
         aria-expanded={isOpen && hasVisibleResults}
         autoComplete="off"
+        maxLength={80}
         id="global-search-input"
         onChange={(event) => {
           setQuery(event.target.value);
@@ -139,10 +154,14 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
         </button>
       )}
       {isOpen &&
-        query.trim().length >= 2 &&
-        (isLoading ? (
+        term.length >= 1 &&
+        (isLoading || resultsFor !== term ? (
           <p aria-live="polite" className="global-search-popover global-search-empty" role="status">
             {messages.searching}
+          </p>
+        ) : searchError && resultsFor === term ? (
+          <p aria-live="polite" className="global-search-popover global-search-empty" role="alert">
+            {errorLabel}
           </p>
         ) : hasVisibleResults ? (
           <div
