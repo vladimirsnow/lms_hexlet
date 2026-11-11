@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { PublicLocaleLinks } from "@/components/public-locale-links";
 import { getMessages, getPublicCatalogMessages, normalizeLocale } from "@/lib/i18n";
 import { getPrisma } from "@/lib/db/prisma";
+import { resolveCourseGroupNames } from "@/server/services/course-groups";
 import { isSeoIndexingEnabled, localizedAlternates, localizedSiteUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,8 @@ const getPublishedCourse = cache(async (slug: string) =>
     select: {
       title: true,
       slug: true,
+      id: true,
+      specialtyId: true,
       summary: true,
       category: true,
       subject: {
@@ -36,6 +39,16 @@ const getPublishedCourse = cache(async (slug: string) =>
       },
       academicYear: { select: { name: true } },
       term: { select: { name: true, startsOn: true, endsOn: true } },
+      enrollments: {
+        where: { status: "ACTIVE", groupId: { not: null } },
+        select: { group: { select: { name: true } } },
+        distinct: ["groupId"],
+      },
+      scheduleEntries: {
+        where: { deletedAt: null },
+        select: { group: { select: { name: true } } },
+        distinct: ["groupId"],
+      },
       specialty: {
         select: { code: true, nameRu: true, nameKk: true, nameEn: true, qualification: true },
       },
@@ -85,6 +98,7 @@ export default async function PublicCoursePage({ params, searchParams }: PagePro
   const landing = getMessages(locale).landing;
   const course = await getPublishedCourse(slug);
   if (!course) notFound();
+  const courseGroups = await resolveCourseGroupNames([course]);
 
   return (
     <main>
@@ -129,6 +143,9 @@ export default async function PublicCoursePage({ params, searchParams }: PagePro
             </span>
             <span>
               {copy.yearLabel}: {course.academicYear.name} · {course.term.name}
+            </span>
+            <span>
+              {copy.groups}: {courseGroups.get(course.id)?.join(", ") || copy.noGroups}
             </span>
           </div>
           <p className="course-detail-teachers">

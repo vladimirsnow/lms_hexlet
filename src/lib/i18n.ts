@@ -3209,6 +3209,8 @@ const publicCatalogMessages = {
     yearLabel: "Учебный год",
     termLabel: "Период",
     teachers: "Преподаватели",
+    groups: "Группы",
+    noGroups: "не назначены",
     noTeachers: "Преподаватель пока не назначен",
     signInToStudy: "Войти в учебный кабинет",
     categoryLabels: {
@@ -3246,6 +3248,8 @@ const publicCatalogMessages = {
     yearLabel: "Оқу жылы",
     termLabel: "Кезең",
     teachers: "Оқытушылар",
+    groups: "Топтар",
+    noGroups: "тағайындалмаған",
     noTeachers: "Оқытушы әлі тағайындалмаған",
     signInToStudy: "Оқу кабинетіне кіру",
     categoryLabels: {
@@ -3283,6 +3287,8 @@ const publicCatalogMessages = {
     yearLabel: "Academic year",
     termLabel: "Term",
     teachers: "Teachers",
+    groups: "Groups",
+    noGroups: "not assigned",
     noTeachers: "No teacher assigned yet",
     signInToStudy: "Sign in to the learning space",
     categoryLabels: {

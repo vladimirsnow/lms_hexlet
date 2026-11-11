@@ -5,6 +5,7 @@ import type { Prisma } from "../../../generated/prisma/client";
 import { PublicLocaleLinks } from "@/components/public-locale-links";
 import { getMessages, getPublicCatalogMessages, normalizeLocale } from "@/lib/i18n";
 import { getPrisma } from "@/lib/db/prisma";
+import { resolveCourseGroupNames } from "@/server/services/course-groups";
 import {
   getSeoRobots,
   isSeoIndexingEnabled,
@@ -105,6 +106,22 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
             { subject: { nameRu: { contains: query, mode: "insensitive" as const } } },
             { subject: { nameKk: { contains: query, mode: "insensitive" as const } } },
             { subject: { nameEn: { contains: query, mode: "insensitive" as const } } },
+            {
+              enrollments: {
+                some: {
+                  status: "ACTIVE",
+                  group: { name: { contains: query, mode: "insensitive" as const } },
+                },
+              },
+            },
+            {
+              scheduleEntries: {
+                some: {
+                  deletedAt: null,
+                  group: { name: { contains: query, mode: "insensitive" as const } },
+                },
+              },
+            },
           ],
         }
       : {}),
@@ -116,11 +133,22 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
         id: true,
         title: true,
         slug: true,
+        specialtyId: true,
         summary: true,
         category: true,
         subject: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
         academicYear: { select: { name: true } },
-        term: { select: { name: true } },
+        term: { select: { name: true, startsOn: true, endsOn: true } },
+        enrollments: {
+          where: { status: "ACTIVE", groupId: { not: null } },
+          select: { group: { select: { name: true } } },
+          distinct: ["groupId"],
+        },
+        scheduleEntries: {
+          where: { deletedAt: null },
+          select: { group: { select: { name: true } } },
+          distinct: ["groupId"],
+        },
         specialty: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
         teacherAssignments: {
           where: { teacher: { status: "ACTIVE", deletedAt: null } },
@@ -150,6 +178,7 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(requestedPage, pageCount);
   const courses = page === requestedPage ? requestedCourses : await findCoursePage(page);
+  const courseGroups = await resolveCourseGroupNames(courses);
 
   function pageHref(nextPage: number) {
     const next = new URLSearchParams({ locale });
@@ -270,6 +299,9 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
                     </span>
                     <span>
                       {course.specialty.code} · {localizedName(locale, course.specialty)}
+                    </span>
+                    <span>
+                      {copy.groups}: {courseGroups.get(course.id)?.join(", ") || copy.noGroups}
                     </span>
                     <span>
                       {copy.teachers}:{" "}

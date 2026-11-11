@@ -1,6 +1,7 @@
 import { Prisma } from "../../../generated/prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
 import type { Actor } from "@/server/auth/session";
+import { resolveCourseGroupNames } from "@/server/services/course-groups";
 
 export interface SearchResult {
   id: string;
@@ -75,6 +76,8 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
         id: true,
         title: true,
         slug: true,
+        specialtyId: true,
+        term: { select: { startsOn: true, endsOn: true } },
         subject: { select: { nameRu: true } },
         enrollments: {
           where: {
@@ -161,6 +164,25 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
   const courses = results[0].status === "fulfilled" ? results[0].value : [];
   const assignments = results[1].status === "fulfilled" ? results[1].value : [];
   const lessons = results[2].status === "fulfilled" ? results[2].value : [];
+  const groupNames = await resolveCourseGroupNames(
+    courses,
+    actor.role === "STUDENT" ? actor.id : undefined,
+  ).catch(
+    () =>
+      new Map(
+        courses.map((course) => [
+          course.id,
+          [
+            ...new Set([
+              ...course.enrollments.flatMap((enrollment) =>
+                enrollment.group?.name ? [enrollment.group.name] : [],
+              ),
+              ...course.scheduleEntries.map((entry) => entry.group.name),
+            ]),
+          ],
+        ]),
+      ),
+  );
 
   return [
     ...courses.map((course) => ({
@@ -168,14 +190,7 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
       kind: "course" as const,
       title: course.title,
       description: course.subject.nameRu,
-      groups: [
-        ...new Set([
-          ...(course.enrollments ?? []).flatMap((enrollment) =>
-            enrollment.group?.name ? [enrollment.group.name] : [],
-          ),
-          ...(course.scheduleEntries ?? []).map((entry) => entry.group.name),
-        ]),
-      ].sort((a, b) => a.localeCompare(b, "ru")),
+      groups: groupNames.get(course.id) ?? [],
       href: `/courses/${course.slug}`,
     })),
     ...assignments.map((assignment) => ({

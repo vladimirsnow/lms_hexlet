@@ -34,6 +34,16 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
     kk: "Іздеу орындалмады. Қайта көріңіз.",
     en: "Search failed. Please try again.",
   }[locale];
+  const groupLabel = {
+    ru: "Группы",
+    kk: "Топтар",
+    en: "Groups",
+  }[locale];
+  const noGroupLabel = {
+    ru: "не назначены",
+    kk: "тағайындалмаған",
+    en: "not assigned",
+  }[locale];
   const visibleResults = resultsFor === term ? results : [];
   const hasVisibleResults = visibleResults.length > 0;
 
@@ -193,8 +203,10 @@ export function GlobalSearch({ locale }: { locale: AppLocale }) {
                   <span className="global-search-result-copy">
                     <strong>{item.title}</strong>
                     <small>{item.description}</small>
-                    {item.groups?.length ? (
-                      <span className="global-search-result-groups">{item.groups.join(" · ")}</span>
+                    {item.kind === "course" ? (
+                      <span className="global-search-result-groups">
+                        {groupLabel}: {item.groups?.join(", ") || noGroupLabel}
+                      </span>
                     ) : null}
                   </span>
                   <span className="global-search-kind">{kindLabels[item.kind]}</span>
