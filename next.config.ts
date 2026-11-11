@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
-  htmlLimitedBots: /.*/,
   serverExternalPackages: ["isomorphic-dompurify"],
   experimental: { cpus: 1 },
 };

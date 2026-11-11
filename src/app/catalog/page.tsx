@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import type { Prisma } from "../../../generated/prisma/client";
@@ -92,100 +93,116 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
   const filters = parsedFilters.success ? parsedFilters.data : {};
   const query = filters.q || "";
   const requestedPage = filters.page || 1;
-  const publishedCourse = { status: "PUBLISHED" as const, deletedAt: null };
-  const prisma = getPrisma();
-  const importedCourseIds = query
-    ? await findImportedCourseIdsForGroupQuery(query).catch(() => [])
-    : [];
-  const where = {
-    ...publishedCourse,
-    ...(filters.academicYearId ? { academicYearId: filters.academicYearId } : {}),
-    ...(filters.specialtyId ? { specialtyId: filters.specialtyId } : {}),
-    ...(filters.category ? { category: filters.category } : {}),
-    ...(query
-      ? {
-          OR: [
-            { title: { contains: query, mode: "insensitive" as const } },
-            { slug: { contains: query, mode: "insensitive" as const } },
-            { summary: { contains: query, mode: "insensitive" as const } },
-            { subject: { code: { contains: query, mode: "insensitive" as const } } },
-            { subject: { nameRu: { contains: query, mode: "insensitive" as const } } },
-            { subject: { nameKk: { contains: query, mode: "insensitive" as const } } },
-            { subject: { nameEn: { contains: query, mode: "insensitive" as const } } },
-            {
+  const { total, academicYears, specialties, courses, page, pageCount, courseGroups } =
+    await unstable_cache(
+      async () => {
+        const publishedCourse = { status: "PUBLISHED" as const, deletedAt: null };
+        const prisma = getPrisma();
+        const importedCourseIds = query
+          ? await findImportedCourseIdsForGroupQuery(query).catch(() => [])
+          : [];
+        const where = {
+          ...publishedCourse,
+          ...(filters.academicYearId ? { academicYearId: filters.academicYearId } : {}),
+          ...(filters.specialtyId ? { specialtyId: filters.specialtyId } : {}),
+          ...(filters.category ? { category: filters.category } : {}),
+          ...(query
+            ? {
+                OR: [
+                  { title: { contains: query, mode: "insensitive" as const } },
+                  { slug: { contains: query, mode: "insensitive" as const } },
+                  { summary: { contains: query, mode: "insensitive" as const } },
+                  { subject: { code: { contains: query, mode: "insensitive" as const } } },
+                  { subject: { nameRu: { contains: query, mode: "insensitive" as const } } },
+                  { subject: { nameKk: { contains: query, mode: "insensitive" as const } } },
+                  { subject: { nameEn: { contains: query, mode: "insensitive" as const } } },
+                  {
+                    enrollments: {
+                      some: {
+                        status: "ACTIVE",
+                        group: { name: { contains: query, mode: "insensitive" as const } },
+                      },
+                    },
+                  },
+                  {
+                    scheduleEntries: {
+                      some: {
+                        deletedAt: null,
+                        group: { name: { contains: query, mode: "insensitive" as const } },
+                      },
+                    },
+                  },
+                  ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
+                ],
+              }
+            : {}),
+        } satisfies Prisma.CourseWhereInput;
+        const findCoursePage = (targetPage: number) =>
+          prisma.course.findMany({
+            where,
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              specialtyId: true,
+              summary: true,
+              category: true,
+              subject: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
+              academicYear: { select: { name: true } },
+              term: { select: { name: true, startsOn: true, endsOn: true } },
               enrollments: {
-                some: {
-                  status: "ACTIVE",
-                  group: { name: { contains: query, mode: "insensitive" as const } },
-                },
+                where: { status: "ACTIVE", groupId: { not: null } },
+                select: { group: { select: { name: true } } },
+                distinct: ["groupId"],
               },
-            },
-            {
               scheduleEntries: {
-                some: {
-                  deletedAt: null,
-                  group: { name: { contains: query, mode: "insensitive" as const } },
-                },
+                where: { deletedAt: null },
+                select: { group: { select: { name: true } } },
+                distinct: ["groupId"],
+              },
+              specialty: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
+              teacherAssignments: {
+                where: { teacher: { status: "ACTIVE", deletedAt: null } },
+                select: { teacher: { select: { name: true } } },
+                orderBy: { assignedAt: "asc" },
               },
             },
-            ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
-          ],
-        }
-      : {}),
-  } satisfies Prisma.CourseWhereInput;
-  const findCoursePage = (targetPage: number) =>
-    prisma.course.findMany({
-      where,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        specialtyId: true,
-        summary: true,
-        category: true,
-        subject: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
-        academicYear: { select: { name: true } },
-        term: { select: { name: true, startsOn: true, endsOn: true } },
-        enrollments: {
-          where: { status: "ACTIVE", groupId: { not: null } },
-          select: { group: { select: { name: true } } },
-          distinct: ["groupId"],
-        },
-        scheduleEntries: {
-          where: { deletedAt: null },
-          select: { group: { select: { name: true } } },
-          distinct: ["groupId"],
-        },
-        specialty: { select: { code: true, nameRu: true, nameKk: true, nameEn: true } },
-        teacherAssignments: {
-          where: { teacher: { status: "ACTIVE", deletedAt: null } },
-          select: { teacher: { select: { name: true } } },
-          orderBy: { assignedAt: "asc" },
-        },
-      },
-      orderBy: [{ academicYear: { startsOn: "desc" } }, { title: "asc" }],
-      skip: (targetPage - 1) * pageSize,
-      take: pageSize,
-    });
+            orderBy: [{ academicYear: { startsOn: "desc" } }, { title: "asc" }],
+            skip: (targetPage - 1) * pageSize,
+            take: pageSize,
+          });
 
-  const [total, academicYears, specialties, requestedCourses] = await Promise.all([
-    prisma.course.count({ where }),
-    prisma.academicYear.findMany({
-      where: { courses: { some: publishedCourse } },
-      select: { id: true, name: true },
-      orderBy: { startsOn: "desc" },
-    }),
-    prisma.specialty.findMany({
-      where: { courses: { some: publishedCourse } },
-      select: { id: true, code: true, nameRu: true, nameKk: true, nameEn: true },
-      orderBy: { nameRu: "asc" },
-    }),
-    findCoursePage(requestedPage),
-  ]);
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const page = Math.min(requestedPage, pageCount);
-  const courses = page === requestedPage ? requestedCourses : await findCoursePage(page);
-  const courseGroups = await resolveCourseGroupNames(courses);
+        const [total, academicYears, specialties, requestedCourses] = await Promise.all([
+          prisma.course.count({ where }),
+          prisma.academicYear.findMany({
+            where: { courses: { some: publishedCourse } },
+            select: { id: true, name: true },
+            orderBy: { startsOn: "desc" },
+          }),
+          prisma.specialty.findMany({
+            where: { courses: { some: publishedCourse } },
+            select: { id: true, code: true, nameRu: true, nameKk: true, nameEn: true },
+            orderBy: { nameRu: "asc" },
+          }),
+          findCoursePage(requestedPage),
+        ]);
+        const pageCount = Math.max(1, Math.ceil(total / pageSize));
+        const page = Math.min(requestedPage, pageCount);
+        const courses = page === requestedPage ? requestedCourses : await findCoursePage(page);
+        const courseGroups = await resolveCourseGroupNames(courses);
+        return {
+          total,
+          academicYears,
+          specialties,
+          courses,
+          page,
+          pageCount,
+          courseGroups: Object.fromEntries(courseGroups),
+        };
+      },
+      ["public-catalog-v1", JSON.stringify(filters)],
+      { revalidate: 30 },
+    )();
 
   function pageHref(nextPage: number) {
     const next = new URLSearchParams({ locale });
@@ -308,7 +325,7 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
                       {course.specialty.code} · {localizedName(locale, course.specialty)}
                     </span>
                     <span>
-                      {copy.groups}: {courseGroups.get(course.id)?.join(", ") || copy.noGroups}
+                      {copy.groups}: {courseGroups[course.id]?.join(", ") || copy.noGroups}
                     </span>
                     <span>
                       {copy.teachers}:{" "}

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { PublicLocaleLinks } from "@/components/public-locale-links";
@@ -24,41 +25,50 @@ function localizedName(
   return names.nameRu;
 }
 
-const getPublishedCourse = cache(async (slug: string) =>
-  getPrisma().course.findFirst({
-    where: { slug, status: "PUBLISHED", deletedAt: null },
-    select: {
-      title: true,
-      slug: true,
-      id: true,
-      specialtyId: true,
-      summary: true,
-      category: true,
-      subject: {
-        select: { code: true, nameRu: true, nameKk: true, nameEn: true, description: true },
-      },
-      academicYear: { select: { name: true } },
-      term: { select: { name: true, startsOn: true, endsOn: true } },
-      enrollments: {
-        where: { status: "ACTIVE", groupId: { not: null } },
-        select: { group: { select: { name: true } } },
-        distinct: ["groupId"],
-      },
-      scheduleEntries: {
-        where: { deletedAt: null },
-        select: { group: { select: { name: true } } },
-        distinct: ["groupId"],
-      },
-      specialty: {
-        select: { code: true, nameRu: true, nameKk: true, nameEn: true, qualification: true },
-      },
-      teacherAssignments: {
-        where: { teacher: { status: "ACTIVE", deletedAt: null } },
-        select: { teacher: { select: { name: true } } },
-        orderBy: { assignedAt: "asc" },
-      },
+const getPublishedCourse = cache(
+  unstable_cache(
+    async (slug: string) => {
+      const course = await getPrisma().course.findFirst({
+        where: { slug, status: "PUBLISHED", deletedAt: null },
+        select: {
+          title: true,
+          slug: true,
+          id: true,
+          specialtyId: true,
+          summary: true,
+          category: true,
+          subject: {
+            select: { code: true, nameRu: true, nameKk: true, nameEn: true, description: true },
+          },
+          academicYear: { select: { name: true } },
+          term: { select: { name: true, startsOn: true, endsOn: true } },
+          enrollments: {
+            where: { status: "ACTIVE", groupId: { not: null } },
+            select: { group: { select: { name: true } } },
+            distinct: ["groupId"],
+          },
+          scheduleEntries: {
+            where: { deletedAt: null },
+            select: { group: { select: { name: true } } },
+            distinct: ["groupId"],
+          },
+          specialty: {
+            select: { code: true, nameRu: true, nameKk: true, nameEn: true, qualification: true },
+          },
+          teacherAssignments: {
+            where: { teacher: { status: "ACTIVE", deletedAt: null } },
+            select: { teacher: { select: { name: true } } },
+            orderBy: { assignedAt: "asc" },
+          },
+        },
+      });
+      if (!course) return null;
+      const groupNames = (await resolveCourseGroupNames([course])).get(course.id) ?? [];
+      return { ...course, groupNames };
     },
-  }),
+    ["public-course-v1"],
+    { revalidate: 30 },
+  ),
 );
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
@@ -98,7 +108,6 @@ export default async function PublicCoursePage({ params, searchParams }: PagePro
   const landing = getMessages(locale).landing;
   const course = await getPublishedCourse(slug);
   if (!course) notFound();
-  const courseGroups = await resolveCourseGroupNames([course]);
 
   return (
     <main>
@@ -145,7 +154,7 @@ export default async function PublicCoursePage({ params, searchParams }: PagePro
               {copy.yearLabel}: {course.academicYear.name} · {course.term.name}
             </span>
             <span>
-              {copy.groups}: {courseGroups.get(course.id)?.join(", ") || copy.noGroups}
+              {copy.groups}: {course.groupNames.join(", ") || copy.noGroups}
             </span>
           </div>
           <p className="course-detail-teachers">
@@ -160,8 +169,11 @@ export default async function PublicCoursePage({ params, searchParams }: PagePro
             <p className="eyebrow">{copy.termLabel}</p>
             <h2>{course.term.name}</h2>
             <p>
-              {course.term.startsOn.toLocaleDateString(locale === "kk" ? "kk-KZ" : locale)} —{" "}
-              {course.term.endsOn.toLocaleDateString(locale === "kk" ? "kk-KZ" : locale)}
+              {new Date(course.term.startsOn).toLocaleDateString(
+                locale === "kk" ? "kk-KZ" : locale,
+              )}{" "}
+              —{" "}
+              {new Date(course.term.endsOn).toLocaleDateString(locale === "kk" ? "kk-KZ" : locale)}
             </p>
           </div>
           {course.specialty.qualification ? <p>{course.specialty.qualification}</p> : null}

@@ -47,66 +47,67 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
 
   const now = new Date();
   const courseAccess = visibleCourseWhere(actor);
-  const importedCourseIds = await findImportedCourseIdsForGroupQuery(term).catch(() => []);
-  // Course access may contain an OR clause (for example a teacher's own and curated
-  // courses). Keep it in AND so the text match cannot replace that access rule.
-  const courseTextMatch: Prisma.CourseWhereInput = {
-    OR: [
-      { title: { contains: term, mode: "insensitive" } },
-      { slug: { contains: term, mode: "insensitive" } },
-      { subject: { nameRu: { contains: term, mode: "insensitive" } } },
-      { subject: { nameKk: { contains: term, mode: "insensitive" } } },
-      { subject: { nameEn: { contains: term, mode: "insensitive" } } },
-      { subject: { code: { contains: term, mode: "insensitive" } } },
-      {
-        enrollments: {
-          some: { status: "ACTIVE", group: { name: { contains: term, mode: "insensitive" } } },
-        },
-      },
-      {
-        scheduleEntries: {
-          some: { deletedAt: null, group: { name: { contains: term, mode: "insensitive" } } },
-        },
-      },
-      ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
-    ],
-  };
   const results = await Promise.allSettled([
-    prisma.course.findMany({
-      where: {
-        deletedAt: null,
-        AND: [courseAccess, courseTextMatch],
-      },
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        specialtyId: true,
-        term: { select: { startsOn: true, endsOn: true } },
-        subject: { select: { nameRu: true } },
-        enrollments: {
-          where: {
-            status: "ACTIVE",
-            groupId: { not: null },
-            ...(actor.role === "STUDENT" ? { studentId: actor.id } : {}),
+    (async () => {
+      const importedCourseIds = await findImportedCourseIdsForGroupQuery(term).catch(() => []);
+      // Keep the text match in AND so a teacher's course access rule stays in force.
+      const courseTextMatch: Prisma.CourseWhereInput = {
+        OR: [
+          { title: { contains: term, mode: "insensitive" } },
+          { slug: { contains: term, mode: "insensitive" } },
+          { subject: { nameRu: { contains: term, mode: "insensitive" } } },
+          { subject: { nameKk: { contains: term, mode: "insensitive" } } },
+          { subject: { nameEn: { contains: term, mode: "insensitive" } } },
+          { subject: { code: { contains: term, mode: "insensitive" } } },
+          {
+            enrollments: {
+              some: { status: "ACTIVE", group: { name: { contains: term, mode: "insensitive" } } },
+            },
           },
-          select: { group: { select: { name: true } } },
-          distinct: ["groupId"],
-        },
-        scheduleEntries: {
-          where: {
-            deletedAt: null,
-            ...(actor.role === "STUDENT"
-              ? { group: { memberships: { some: { studentId: actor.id, leftAt: null } } } }
-              : {}),
+          {
+            scheduleEntries: {
+              some: { deletedAt: null, group: { name: { contains: term, mode: "insensitive" } } },
+            },
           },
-          select: { group: { select: { name: true } } },
-          distinct: ["groupId"],
+          ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
+        ],
+      };
+      return prisma.course.findMany({
+        where: {
+          deletedAt: null,
+          AND: [courseAccess, courseTextMatch],
         },
-      },
-      orderBy: { title: "asc" },
-      take: 5,
-    }),
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          specialtyId: true,
+          term: { select: { startsOn: true, endsOn: true } },
+          subject: { select: { nameRu: true } },
+          enrollments: {
+            where: {
+              status: "ACTIVE",
+              groupId: { not: null },
+              ...(actor.role === "STUDENT" ? { studentId: actor.id } : {}),
+            },
+            select: { group: { select: { name: true } } },
+            distinct: ["groupId"],
+          },
+          scheduleEntries: {
+            where: {
+              deletedAt: null,
+              ...(actor.role === "STUDENT"
+                ? { group: { memberships: { some: { studentId: actor.id, leftAt: null } } } }
+                : {}),
+            },
+            select: { group: { select: { name: true } } },
+            distinct: ["groupId"],
+          },
+        },
+        orderBy: { title: "asc" },
+        take: 5,
+      });
+    })(),
     prisma.assignment.findMany({
       where: {
         deletedAt: null,
