@@ -108,6 +108,7 @@ export function AppShell({ name, role, locale, active, children }: AppShellProps
       className={active === key ? "app-nav-link app-nav-link-active" : "app-nav-link"}
       href={href}
       key={href}
+      prefetch={true}
     >
       <Icon aria-hidden="true" size={17} strokeWidth={1.8} />
       <span>{label}</span>

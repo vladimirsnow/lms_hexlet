@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   serverExternalPackages: ["isomorphic-dompurify"],
-  experimental: { cpus: 1 },
+  experimental: { cpus: 1, staleTimes: { static: 300, dynamic: 0 } },
 };
 
 export default nextConfig;
