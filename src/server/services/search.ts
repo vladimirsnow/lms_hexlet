@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import type { Actor } from "@/server/auth/session";
 import {
   findImportedCourseIdsForGroupQuery,
+  isExactStudyGroupName,
   resolveCourseGroupNames,
 } from "@/server/services/course-groups";
 
@@ -49,16 +50,23 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
   const courseAccess = visibleCourseWhere(actor);
   const results = await Promise.allSettled([
     (async () => {
-      const importedCourseIds = await findImportedCourseIdsForGroupQuery(term).catch(() => []);
+      const [importedCourseIds, exactGroupName] = await Promise.all([
+        findImportedCourseIdsForGroupQuery(term).catch(() => []),
+        isExactStudyGroupName(term).catch(() => false),
+      ]);
       // Keep the text match in AND so a teacher's course access rule stays in force.
       const courseTextMatch: Prisma.CourseWhereInput = {
         OR: [
-          { title: { contains: term, mode: "insensitive" } },
-          { slug: { contains: term, mode: "insensitive" } },
-          { subject: { nameRu: { contains: term, mode: "insensitive" } } },
-          { subject: { nameKk: { contains: term, mode: "insensitive" } } },
-          { subject: { nameEn: { contains: term, mode: "insensitive" } } },
-          { subject: { code: { contains: term, mode: "insensitive" } } },
+          ...(!exactGroupName
+            ? [
+                { title: { contains: term, mode: "insensitive" as const } },
+                { slug: { contains: term, mode: "insensitive" as const } },
+                { subject: { nameRu: { contains: term, mode: "insensitive" as const } } },
+                { subject: { nameKk: { contains: term, mode: "insensitive" as const } } },
+                { subject: { nameEn: { contains: term, mode: "insensitive" as const } } },
+                { subject: { code: { contains: term, mode: "insensitive" as const } } },
+              ]
+            : []),
           {
             enrollments: {
               some: { status: "ACTIVE", group: { name: { contains: term, mode: "insensitive" } } },

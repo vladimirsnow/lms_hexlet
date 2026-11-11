@@ -72,6 +72,11 @@ const getImportedGroupSubjects = unstable_cache(
   { revalidate: 30 },
 );
 
+export async function isExactStudyGroupName(query: string): Promise<boolean> {
+  const normalizedQuery = normalize(query);
+  return (await getGroupNames()).some((name) => normalize(name) === normalizedQuery);
+}
+
 export async function findImportedCourseIdsForGroupQuery(query: string): Promise<string[]> {
   const prisma = getPrisma();
   const normalizedQuery = normalize(query);

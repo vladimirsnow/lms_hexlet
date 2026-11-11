@@ -4,7 +4,11 @@ const mocks = vi.hoisted(() => ({ getPrisma: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => ({ getPrisma: mocks.getPrisma }));
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
-import { findImportedCourseIdsForGroupQuery, resolveCourseGroupNames } from "./course-groups";
+import {
+  findImportedCourseIdsForGroupQuery,
+  isExactStudyGroupName,
+  resolveCourseGroupNames,
+} from "./course-groups";
 
 describe("course group labels", () => {
   beforeEach(() => mocks.getPrisma.mockReset());
@@ -64,6 +68,7 @@ describe("course group labels", () => {
         ]),
       },
     });
+    expect(await isExactStudyGroupName("пм1 рпо")).toBe(true);
     expect(await findImportedCourseIdsForGroupQuery("ПМ1 РПО")).toEqual(["matching-course"]);
   });
 

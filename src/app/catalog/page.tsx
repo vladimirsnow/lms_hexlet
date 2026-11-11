@@ -8,6 +8,7 @@ import { getMessages, getPublicCatalogMessages, normalizeLocale } from "@/lib/i1
 import { getPrisma } from "@/lib/db/prisma";
 import {
   findImportedCourseIdsForGroupQuery,
+  isExactStudyGroupName,
   resolveCourseGroupNames,
 } from "@/server/services/course-groups";
 import {
@@ -98,9 +99,12 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
       async () => {
         const publishedCourse = { status: "PUBLISHED" as const, deletedAt: null };
         const prisma = getPrisma();
-        const importedCourseIds = query
-          ? await findImportedCourseIdsForGroupQuery(query).catch(() => [])
-          : [];
+        const [importedCourseIds, exactGroupName] = query
+          ? await Promise.all([
+              findImportedCourseIdsForGroupQuery(query).catch(() => []),
+              isExactStudyGroupName(query).catch(() => false),
+            ])
+          : [[], false];
         const where = {
           ...publishedCourse,
           ...(filters.academicYearId ? { academicYearId: filters.academicYearId } : {}),
@@ -109,13 +113,17 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
           ...(query
             ? {
                 OR: [
-                  { title: { contains: query, mode: "insensitive" as const } },
-                  { slug: { contains: query, mode: "insensitive" as const } },
-                  { summary: { contains: query, mode: "insensitive" as const } },
-                  { subject: { code: { contains: query, mode: "insensitive" as const } } },
-                  { subject: { nameRu: { contains: query, mode: "insensitive" as const } } },
-                  { subject: { nameKk: { contains: query, mode: "insensitive" as const } } },
-                  { subject: { nameEn: { contains: query, mode: "insensitive" as const } } },
+                  ...(!exactGroupName
+                    ? [
+                        { title: { contains: query, mode: "insensitive" as const } },
+                        { slug: { contains: query, mode: "insensitive" as const } },
+                        { summary: { contains: query, mode: "insensitive" as const } },
+                        { subject: { code: { contains: query, mode: "insensitive" as const } } },
+                        { subject: { nameRu: { contains: query, mode: "insensitive" as const } } },
+                        { subject: { nameKk: { contains: query, mode: "insensitive" as const } } },
+                        { subject: { nameEn: { contains: query, mode: "insensitive" as const } } },
+                      ]
+                    : []),
                   {
                     enrollments: {
                       some: {
