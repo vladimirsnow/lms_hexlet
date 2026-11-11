@@ -1,7 +1,10 @@
 import { Prisma } from "../../../generated/prisma/client";
 import { getPrisma } from "@/lib/db/prisma";
 import type { Actor } from "@/server/auth/session";
-import { resolveCourseGroupNames } from "@/server/services/course-groups";
+import {
+  findImportedCourseIdsForGroupQuery,
+  resolveCourseGroupNames,
+} from "@/server/services/course-groups";
 
 export interface SearchResult {
   id: string;
@@ -44,6 +47,7 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
 
   const now = new Date();
   const courseAccess = visibleCourseWhere(actor);
+  const importedCourseIds = await findImportedCourseIdsForGroupQuery(term).catch(() => []);
   // Course access may contain an OR clause (for example a teacher's own and curated
   // courses). Keep it in AND so the text match cannot replace that access rule.
   const courseTextMatch: Prisma.CourseWhereInput = {
@@ -64,6 +68,7 @@ export async function searchLearningContent(actor: Actor, query: string): Promis
           some: { deletedAt: null, group: { name: { contains: term, mode: "insensitive" } } },
         },
       },
+      ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
     ],
   };
   const results = await Promise.allSettled([

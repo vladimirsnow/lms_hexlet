@@ -5,7 +5,10 @@ import type { Prisma } from "../../../generated/prisma/client";
 import { PublicLocaleLinks } from "@/components/public-locale-links";
 import { getMessages, getPublicCatalogMessages, normalizeLocale } from "@/lib/i18n";
 import { getPrisma } from "@/lib/db/prisma";
-import { resolveCourseGroupNames } from "@/server/services/course-groups";
+import {
+  findImportedCourseIdsForGroupQuery,
+  resolveCourseGroupNames,
+} from "@/server/services/course-groups";
 import {
   getSeoRobots,
   isSeoIndexingEnabled,
@@ -91,6 +94,9 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
   const requestedPage = filters.page || 1;
   const publishedCourse = { status: "PUBLISHED" as const, deletedAt: null };
   const prisma = getPrisma();
+  const importedCourseIds = query
+    ? await findImportedCourseIdsForGroupQuery(query).catch(() => [])
+    : [];
   const where = {
     ...publishedCourse,
     ...(filters.academicYearId ? { academicYearId: filters.academicYearId } : {}),
@@ -122,6 +128,7 @@ export default async function PublicCatalogPage({ searchParams }: PageProps) {
                 },
               },
             },
+            ...(importedCourseIds.length ? [{ id: { in: importedCourseIds } }] : []),
           ],
         }
       : {}),

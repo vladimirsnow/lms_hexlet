@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getPrisma: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => ({ getPrisma: mocks.getPrisma }));
 
-import { resolveCourseGroupNames } from "./course-groups";
+import { findImportedCourseIdsForGroupQuery, resolveCourseGroupNames } from "./course-groups";
 
 describe("course group labels", () => {
   beforeEach(() => mocks.getPrisma.mockReset());
@@ -32,5 +32,35 @@ describe("course group labels", () => {
       },
     ]);
     expect(groups.get("course-id")).toEqual(["ПМ1 РПО"]);
+  });
+
+  it("finds courses by an imported group name in the matching term", async () => {
+    mocks.getPrisma.mockReturnValue({
+      studyGroup: {
+        findMany: vi.fn().mockResolvedValue([{ id: "group-id", specialtyId: "specialty-id" }]),
+      },
+      scheduleImport: {
+        findFirst: vi.fn().mockResolvedValue({
+          entries: [{ groupId: "group-id", date: "2026-11-11", subject: "Математика" }],
+        }),
+      },
+      course: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "matching-course",
+            title: "Математика",
+            specialtyId: "specialty-id",
+            term: { startsOn: new Date("2026-09-01"), endsOn: new Date("2027-01-31") },
+          },
+          {
+            id: "other-term",
+            title: "Математика",
+            specialtyId: "specialty-id",
+            term: { startsOn: new Date("2027-02-01"), endsOn: new Date("2027-06-30") },
+          },
+        ]),
+      },
+    });
+    expect(await findImportedCourseIdsForGroupQuery("ПМ1 РПО")).toEqual(["matching-course"]);
   });
 });

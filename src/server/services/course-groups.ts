@@ -14,6 +14,63 @@ function normalize(value: string) {
   return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("ru");
 }
 
+export async function findImportedCourseIdsForGroupQuery(query: string): Promise<string[]> {
+  const prisma = getPrisma();
+  const groups = await prisma.studyGroup.findMany({
+    where: { name: { contains: query, mode: "insensitive" } },
+    select: { id: true, specialtyId: true },
+  });
+  if (!groups.length) return [];
+
+  const latest = await prisma.scheduleImport.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { entries: true },
+  });
+  const imported = (latest?.entries ?? []) as unknown as ImportedLesson[];
+  const groupById = new Map(groups.map((group) => [group.id, group]));
+  const matches = new Map<string, { specialtyId: string; subject: string; dates: Set<string> }>();
+  for (const entry of imported) {
+    const group = entry.groupId ? groupById.get(entry.groupId) : null;
+    if (!group) continue;
+    const subject = cleanScheduleSubjectName(entry.subject);
+    if (!subject) continue;
+    const key = `${group.specialtyId}:${normalize(subject)}`;
+    const match = matches.get(key) ?? {
+      specialtyId: group.specialtyId,
+      subject,
+      dates: new Set<string>(),
+    };
+    match.dates.add(entry.date);
+    matches.set(key, match);
+  }
+  if (!matches.size) return [];
+
+  const courses = await prisma.course.findMany({
+    where: {
+      deletedAt: null,
+      OR: [...matches.values()].map(({ specialtyId, subject }) => ({
+        specialtyId,
+        title: { equals: subject, mode: "insensitive" as const },
+      })),
+    },
+    select: {
+      id: true,
+      title: true,
+      specialtyId: true,
+      term: { select: { startsOn: true, endsOn: true } },
+    },
+  });
+  return courses
+    .filter((course) => {
+      const match = matches.get(`${course.specialtyId}:${normalize(course.title)}`);
+      if (!match) return false;
+      const start = course.term.startsOn.toISOString().slice(0, 10);
+      const end = course.term.endsOn.toISOString().slice(0, 10);
+      return [...match.dates].some((date) => date >= start && date <= end);
+    })
+    .map((course) => course.id);
+}
+
 export async function resolveCourseGroupNames(
   courses: CourseGroupSource[],
   studentId?: string,
