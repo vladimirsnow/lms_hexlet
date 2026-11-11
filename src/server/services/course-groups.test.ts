@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ getPrisma: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => ({ getPrisma: mocks.getPrisma }));
+vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
 
 import { findImportedCourseIdsForGroupQuery, resolveCourseGroupNames } from "./course-groups";
 
@@ -37,7 +38,9 @@ describe("course group labels", () => {
   it("finds courses by an imported group name in the matching term", async () => {
     mocks.getPrisma.mockReturnValue({
       studyGroup: {
-        findMany: vi.fn().mockResolvedValue([{ id: "group-id", specialtyId: "specialty-id" }]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: "group-id", name: "ПМ1 РПО", specialtyId: "specialty-id" }]),
       },
       scheduleImport: {
         findFirst: vi.fn().mockResolvedValue({
@@ -62,5 +65,35 @@ describe("course group labels", () => {
       },
     });
     expect(await findImportedCourseIdsForGroupQuery("ПМ1 РПО")).toEqual(["matching-course"]);
+  });
+
+  it("does not show imported groups outside a student's memberships", async () => {
+    mocks.getPrisma.mockReturnValue({
+      scheduleImport: {
+        findFirst: vi.fn().mockResolvedValue({
+          entries: [{ groupId: "other-group", date: "2026-11-11", subject: "Математика" }],
+        }),
+      },
+      studyGroup: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: "other-group", name: "ПМ1 РПО", specialtyId: "specialty-id" }]),
+      },
+      groupMember: { findMany: vi.fn().mockResolvedValue([]) },
+    });
+    const groups = await resolveCourseGroupNames(
+      [
+        {
+          id: "course-id",
+          title: "Математика",
+          specialtyId: "specialty-id",
+          term: { startsOn: new Date("2026-09-01"), endsOn: new Date("2027-01-31") },
+          enrollments: [],
+          scheduleEntries: [],
+        },
+      ],
+      "student-id",
+    );
+    expect(groups.get("course-id")).toEqual([]);
   });
 });
